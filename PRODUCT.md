@@ -1,0 +1,82 @@
+# Nichemap
+
+Antigo nome do protótipo e do repositório: **Niche Intelligence** (`niche-intelligence`). Renomeado para Nichemap em 2026-10-17, a pedido do usuário.
+
+## Problema e objetivo
+
+Quem cuida das redes sociais de uma empresa (ou da própria marca pessoal) precisa entender como o perfil no Instagram está indo, que conteúdo funciona, como o nicho se movimenta e onde há oportunidades. Hoje isso é feito olhando o app do Instagram e planilhas soltas, sem uma visão consolidada.
+
+O Nichemap reúne essas informações num painel único, pensado para ser consultado principalmente no celular: perfil, indicadores, conteúdos em destaque, temas, mercado, pessoas relevantes e oportunidades.
+
+## Público e papéis
+
+- **Social media de empresas** e **pessoas que gerenciam a própria presença** e querem acompanhar tudo pelo celular.
+- Um único papel por enquanto: quem abre o painel vê os dados do perfil configurado. Não há login, equipe ou multi-tenancy implementados.
+
+## Fluxos da versão inicial
+
+1. **Ver o painel de um perfil.** Entrada: perfil buscado no topo da página (`?target=`, aceita `@perfil`) ou o padrão `INSTAGRAM_TARGET_USERNAME`. Ação: abrir `/`. Resultado: cabeçalho do perfil, KPIs (seguidores, engajamento médio, publicações, profile score), gráfico de crescimento, tipos de conteúdo e temas.
+2. **Identificar o conteúdo que performa.** Resultado: lista dos 5 conteúdos com mais curtidas, com tipo, data, curtidas, comentários, multiplicador sobre a média e link para o post.
+3. **Explorar mercado, pessoas e oportunidades.** Resultado: tabelas de perfis do mercado, pessoas relevantes e oportunidades (empresas/pessoas) com score.
+4. **Saber se o dado é real.** O painel mostra um aviso indicando se os dados vêm da API do Instagram ou são de exemplo.
+
+## MVP
+
+Em ordem de prioridade:
+
+1. Painel do perfil com dados reais da Instagram Graph API (business discovery) e fallback para dados de exemplo. **Implementado.**
+2. Leitura confortável no celular (mobile-first). **Parcial:** o painel renderiza a 375px sem rolagem horizontal, mas não há navegação no celular.
+3. Histórico real de crescimento a partir de snapshots diários guardados no PostgreSQL. **Pendente** — hoje o histórico com dados reais é estimado.
+4. Mercado, pessoas relevantes e oportunidades com fonte real. **Pendente** — dependem de fontes ainda não escolhidas.
+
+## Fora de escopo (por enquanto)
+
+- Módulos do menu além do Dashboard (Profile Scanner, Conteúdo, Market Radar, Pessoas, Empresas, Oportunidades, Relatórios, Configurações): aparecem na sidebar, mas estão desabilitados.
+- Login, planos/cobrança ("Plano Pro" na sidebar é ilustrativo), notificações (o sino com "3" é ilustrativo).
+- App nativo: o produto é web mobile-first (decisão do usuário, 2026-10-17). React Native/Expo não entra.
+
+## Requisitos
+
+- Interface em português (pt-BR).
+- Funcionar no celular sem rolagem horizontal; desktop também suportado (sidebar a partir de `md`).
+- Dados do Instagram somente via API oficial (Graph API) com conta comercial/criador **pública** como alvo.
+- O token do Instagram fica só no servidor (`.env.local`), nunca em `NEXT_PUBLIC_*` nem no cliente.
+- O parâmetro `target` é validado (formato de username do Instagram) antes de chamar a API.
+- Quando o dado não é real (mock ou estimado), a interface precisa dizer isso.
+
+## Restrições e decisões técnicas
+
+- Next.js 16 (App Router), React 19, TypeScript strict, Tailwind 4, Recharts e lucide-react — stack herdada do protótipo e preservada.
+- Gerenciador: **npm** (o protótipo já tinha `package-lock.json`). Node ≥ 24.
+- Persistência: Drizzle ORM + PostgreSQL (`pg`), instalado no bootstrap e ainda **sem tabelas**. Justificativa concreta: snapshots diários de seguidores/engajamento para histórico real.
+- Instagram Graph API `v25.0`, endpoint `business_discovery`. O token do Graph API Explorer expira em ~1 h; produção precisa de long-lived ou System User e do app Meta aprovado (ver `docs/onboarding.md`).
+- Código no GitHub (`gabrielrichardy/nichemap`), `main` protegida por PR + CI; deploy na Vercel a partir da `main`.
+
+## Hipóteses e pendências
+
+| Item | Tipo | Impacto | Próximo passo |
+|---|---|---|---|
+| Fontes de dados para Mercado, Pessoas e Oportunidades | Decisão externa pendente | Essas seções continuam com dados de exemplo | Escolher fontes (perfis concorrentes, enriquecimento) e custos |
+| Renovação do token (long-lived / System User) | Decisão externa pendente | Dados reais param quando o token expira | Definir app Meta e fluxo de renovação |
+| Banco PostgreSQL de desenvolvimento/produção | Decisão externa pendente | Sem ele não há snapshots | Escolher provedor e criar `.env.local` com `DATABASE_URL` |
+| Um único perfil analisado por instalação | Hipótese reversível | Sem multi-conta | Revisar quando houver login/equipes |
+
+## Critérios de aceitação
+
+Produto:
+
+- Sem variáveis do Instagram, `/` mostra o painel com dados de exemplo e o aviso "Dados de exemplo".
+- Com `INSTAGRAM_ACCESS_TOKEN` e `INSTAGRAM_BUSINESS_ID` válidos, KPIs, tipos de conteúdo, temas e conteúdos em destaque vêm da API e o aviso indica "Dados reais do Instagram".
+- Se a API falhar, o painel continua com dados de exemplo e mostra o motivo.
+- `GET /api/instagram?target=<inválido>` responde 400 sem chamar a API.
+- A 375px de largura, o painel não tem rolagem horizontal.
+
+Os checks técnicos ficam em [docs/quality.md](docs/quality.md).
+
+## Próxima entrega
+
+**Snapshot diário do perfil no PostgreSQL**: primeira tabela Drizzle (perfil, data, seguidores, publicações, engajamento), gravação idempotente por dia e gráfico de crescimento lendo o histórico real quando existir — mantendo o aviso de estimativa enquanto não houver dias suficientes. Depende de um `DATABASE_URL` autorizado e de como disparar a coleta diária (decisão a tomar).
+
+## Manutenção
+
+Atualize este documento quando objetivo, escopo, restrições ou critérios de aceitação mudarem. Decisões técnicas e evidências detalhadas ficam em [docs/architecture.md](docs/architecture.md) e [docs/setup.md](docs/setup.md).

@@ -36,9 +36,7 @@ export function Sidebar() {
           <Boxes className="w-5 h-5 text-white" />
         </div>
         <span className="text-white font-semibold leading-tight text-[15px]">
-          Niche
-          <br />
-          Intelligence
+          Nichemap
         </span>
       </div>
 
@@ -46,6 +44,8 @@ export function Sidebar() {
         {NAV_ITEMS.map((item) => (
           <button
             key={item.label}
+            aria-current={item.active ? "page" : undefined}
+            aria-disabled={item.active ? undefined : true}
             title={item.active ? undefined : "Módulo ainda não disponível — foco de hoje é o Dashboard"}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
               item.active
@@ -53,7 +53,7 @@ export function Sidebar() {
                 : "text-slate-400 hover:text-slate-200 hover:bg-white/5 cursor-not-allowed"
             }`}
           >
-            <item.icon className="w-[18px] h-[18px]" />
+            <item.icon className="w-[18px] h-[18px]" aria-hidden="true" />
             {item.label}
           </button>
         ))}
@@ -63,9 +63,11 @@ export function Sidebar() {
         {NAV_ITEMS_SECONDARY.map((item) => (
           <button
             key={item.label}
+            aria-disabled="true"
+            title="Módulo ainda não disponível"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-400 hover:text-slate-200 hover:bg-white/5"
           >
-            <item.icon className="w-[18px] h-[18px]" />
+            <item.icon className="w-[18px] h-[18px]" aria-hidden="true" />
             {item.label}
           </button>
         ))}

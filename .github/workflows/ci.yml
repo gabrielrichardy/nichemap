@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [main]
 
+# Job names "lint" and "build" are the required status checks on main; keep them.
 jobs:
   lint:
     name: lint
@@ -14,10 +15,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run lint:rules
+      - run: npm test
 
   build:
     name: build
@@ -26,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run build

@@ -15,7 +15,6 @@
 
 ## Checklist
 
-- [ ] O código compila (`npm run build`)
-- [ ] O lint passa (`npm run lint`)
+- [ ] `npm run check` passa (lint, tipos, regras, testes e build)
 - [ ] Não há segredos/credenciais no diff (`.env.local` está no `.gitignore`)
 - [ ] A documentação foi atualizada, se necessário

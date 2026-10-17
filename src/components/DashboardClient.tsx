@@ -20,7 +20,12 @@ export function DashboardClient({ target }: { target: string }) {
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/instagram?target=${encodeURIComponent(target)}`)
-      .then((res) => res.json())
+      .then(async (res) => {
+        const json = await res.json();
+        // A 400 body is { error }, not DashboardData: rendering it would crash the page.
+        if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+        return json;
+      })
       .then((json) => {
         if (!cancelled) setData(json);
       })

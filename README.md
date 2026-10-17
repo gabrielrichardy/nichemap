@@ -1,172 +1,71 @@
-# Niche Intelligence — Dashboard
+# Nichemap
 
-[![CI](https://github.com/gabrielrichardy/niche-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/gabrielrichardy/niche-intelligence/actions/workflows/ci.yml)
+[![CI](https://github.com/gabrielrichardy/nichemap/actions/workflows/ci.yml/badge.svg)](https://github.com/gabrielrichardy/nichemap/actions/workflows/ci.yml)
 ![Licença](https://img.shields.io/badge/license-proprietário-red)
-![Next.js](https://img.shields.io/badge/Next.js-16-black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
 
-Painel web para social media analisar o perfil de uma empresa no Instagram, seus
-conteúdos, o mercado e oportunidades.
+Painel web mobile-first para social media de empresas e pessoas acompanharem um perfil do Instagram: indicadores, conteúdos em destaque, temas, mercado e oportunidades. Escopo em [PRODUCT.md](PRODUCT.md).
 
-> **Status:** MVP funcional. Por padrão roda com **dados de exemplo**; ao
-> configurar um token da Instagram Graph API, passa a exibir dados reais do
-> perfil analisado.
+> **Status:** MVP funcional. Sem configuração roda com **dados de exemplo**; com um token da Instagram Graph API mostra dados reais do perfil analisado.
 
-## Stack
+## Executar
 
-- **Next.js 16** (App Router) + **TypeScript**
-- **Tailwind CSS v4**
-- **Recharts** (gráficos) + **lucide-react** (ícones)
-
-## Como rodar localmente
+Requer Node.js 24+ e npm.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Abra http://localhost:3000
+Abra http://localhost:3000. Para analisar outro perfil, use a busca do topo ou `?target=@perfil` na URL.
+
+Para dados reais do Instagram e para o banco, copie `.env.example` para `.env.local` e siga [docs/onboarding.md](docs/onboarding.md). Nenhum valor real vai para o Git.
+
+Verificar tudo (lint, tipos, regras, testes e build — sem credenciais):
+
+```bash
+npm run check
+```
 
 ## Deploy na Vercel
 
-O repo está pronto para a Vercel — não precisa de nenhuma configuração extra além das
-variáveis de ambiente. Passos:
+O projeto está ligado à Vercel pelo GitHub: cada push na `main` gera o deploy de produção, cada PR ganha um preview. O build usa `npm run build` (Next.js detectado automaticamente).
 
-1. Em [vercel.com](https://vercel.com), **Add New > Project** e importe o repositório
-   `gabrielrichardy/niche-intelligence`.
-2. Em **Settings > Environment Variables**, adicione (opcional, para dados reais do
-   Instagram):
-   - `INSTAGRAM_ACCESS_TOKEN`
-   - `INSTAGRAM_BUSINESS_ID`
-   - `INSTAGRAM_TARGET_USERNAME`
-3. Clique em **Deploy**. O build usa `npm run build` automaticamente (framework
-   detectado como Next.js).
-4. O dashboard sobe em `https://<seu-projeto>.vercel.app`. O usuário ainda pode
-   escolher o perfil pela URL: `?target=@outro_perfil`.
+Variáveis em **Settings > Environment Variables** (todas opcionais; sem elas o deploy funciona com dados de exemplo): `INSTAGRAM_ACCESS_TOKEN`, `INSTAGRAM_BUSINESS_ID`, `INSTAGRAM_TARGET_USERNAME`, `META_VERIFICATION_CODE` e, quando houver schema, `DATABASE_URL`.
 
-> Sem as variáveis, o deploy **funciona normalmente** exibindo dados de exemplo.
+O passo a passo para liberar o acesso real na Meta (app em Live, verificações, permissões e token) está em [docs/onboarding.md](docs/onboarding.md#confirmar-o-app-meta).
 
-### Alternativa pela CLI
+## O que é real e o que é exemplo
 
-```bash
-npm i -g vercel
-vercel link        # vincula ao projeto (uma vez)
-vercel env add INSTAGRAM_ACCESS_TOKEN   # repita para as outras 2
-vercel --prod
-```
+Com o token configurado, são reais: seguidores, publicações, tipos de conteúdo, conteúdos em destaque e temas (palavras-chave nas legendas). O histórico de crescimento é **estimado** até existirem snapshots diários. Mercado, Pessoas Relevantes e Oportunidades continuam com **dados de exemplo**.
 
-## Variáveis de ambiente
+## Documentação
 
-Copie o exemplo e preencha para ligar **dados reais** do Instagram:
-
-```bash
-cp .env.local.example .env.local
-```
-
-| Variável                    | Descrição                                                          |
-| --------------------------- | ------------------------------------------------------------------ |
-| `INSTAGRAM_ACCESS_TOKEN`    | Token da Instagram Graph API (Graph API Explorer)                  |
-| `INSTAGRAM_BUSINESS_ID`     | ID da sua conta comercial do Instagram (usada para consultar)      |
-| `INSTAGRAM_TARGET_USERNAME` | @ do perfil a analisar (conta Business/Criador pública) — `biodev` |
-
-Sem essas variáveis, o dashboard funciona normalmente com dados de exemplo.
-**O `.env.local` nunca é commitado** (está no `.gitignore`). Veja o passo a passo
-completo em `.env.local.example`.
-
-## Confirmar o app Meta (acesso real ao Instagram)
-
-Para o `business_discovery` devolver dados **reais** (e não cair no mock), o app
-na Meta precisa percorrer este checklist — **é processo no painel da Meta, não
-código**. Faça nesta ordem, porque cada etapa desbloqueia a seguinte:
-
-1. **Criar o app** em developers.facebook.com com produto **Instagram** (Instagram
-   API with Facebook Login). Anote o *App ID*.
-2. **Colocar o app em modo LIVE** (App Dashboard → `Settings > Basic` → App Mode →
-   Live). App em modo Development não chama API real.
-3. **Business Verification** — verificar a empresa no Meta Business Manager
-   (documentos). Sem isso o acesso avançado é rejeitado.
-4. **Domain Verification** — em Business Suite → `Settings > Brand safety >
-   Domains`, adicione o domínio e escolha "Meta Tag". Cole o código no dashboard
-   via `META_VERIFICATION_CODE` (o app injeta o meta-tag sozinho no `<head>`).
-5. **App Review / Advanced Access** — para as permissões
-   `instagram_business_basic` e (**importante**) `instagram_manage_insights`, que
-   é a que efetivamente libera o `business_discovery`. Solicite no painel do app:
-   `App Review > Permissions and Features > Request Advanced Access`.
-6. **Token long-lived (ou System User)** — gere o token no Graph API Explorer com
-   as permissões `instagram_business_basic`, `pages_show_list`,
-   `business_management`. Para não expirar em ~1h, troque por um *long-lived* ou
-   use um **System User** (não expira). Preencha `INSTAGRAM_ACCESS_TOKEN` e
-   `INSTAGRAM_BUSINESS_ID` na Vercel.
-7. **Testar** — abra `/api/instagram` de preferência com `?target=@perfil`; se vier
-   `source: "live"` está pronto. Erros típicos:
-   - `(#10) permission denied`: app não em Live, permissão sem Advanced Access ou
-     faltando `instagram_manage_insights`.
-   - `(#200) Access token has expired`: token curto venceu — use long-lived/System User.
-
-> **Domínio a verificar:** a Meta valida o domínio onde o app roda, então caso o
-> dashboard rode em `niche-intelligence.vercel.app`, o meta-tag precisa estar no
-> `<head>` desse host (é exatamente o que o dashboard faz com `META_VERIFICATION_CODE`).
-
-## O que já é real vs. exemplo
-
-Com o token configurado, ficam **reais**: seguidores, publicações, tipos de
-conteúdo, conteúdos em destaque (curtidas/comentários) e a análise de temas
-(feita por palavras-chave nas legendas reais).
-
-O **histórico diário de crescimento** é estimado (a API não entrega histórico —
-isso exigirá guardarmos um snapshot por dia). **Mercado, Pessoas Relevantes e
-Oportunidades** continuam com dados de exemplo — dependem de outras fontes que
-ainda não foram plugadas.
-
-## Estrutura
-
-```
-src/
-  app/
-    page.tsx                — página do Dashboard
-    api/instagram/route.ts  — endpoint que serve dados (real ou mock)
-  components/               — blocos visuais do Dashboard
-  lib/
-    instagram.ts            — integração com a Instagram Graph API
-    mockData.ts             — dados de exemplo (fallback)
-    types.ts                — tipos compartilhados
-```
+- [Produto e escopo](PRODUCT.md)
+- [Preparação local e Meta](docs/onboarding.md)
+- [Estrutura e decisões técnicas](docs/architecture.md)
+- [Design e acessibilidade](docs/design.md)
+- [Checks de qualidade](docs/quality.md)
+- [Instruções para agentes](AGENTS.md)
+- [Setup e evidências](docs/setup.md)
+- [Como contribuir](CONTRIBUTING.md)
 
 ## Desenvolvimento
 
-Este repositório segue um fluxo de produção. A branch `main` é protegida: toda
-mudança entra via Pull Request e só mergeia após os checks de CI (`lint` +
-`build`) passarem.
-
-- **Branches:** `feature/`, `fix/`, `docs/`, `chore/` a partir da `main`.
-- **Commits:** [Conventional Commits](https://www.conventionalcommits.org/)
-  (`feat:`, `fix:`, `docs:`, `chore:`).
-- **CI:** GitHub Actions roda `npm run lint` e `npm run build` em cada PR.
-- **Revisão:** o `CODEOWNERS` solicita revisão automática em todas as PRs.
-
-Veja `CONTRIBUTING.md` para o passo a passo completo.
-
-### Scripts
-
-| Comando         | Descrição                          |
-| --------------- | ---------------------------------- |
-| `npm run dev`   | Servidor de desenvolvimento        |
-| `npm run build` | Build de produção                  |
-| `npm run start` | Roda o build de produção           |
-| `npm run lint`  | ESLint                             |
+A `main` é protegida: toda mudança entra por Pull Request e só faz merge com os checks de CI `lint` (lint, tipos, regras e testes) e `build` verdes. Branches `feature/`, `fix/`, `docs/`, `chore/`; commits em [Conventional Commits](https://www.conventionalcommits.org/). Detalhes em [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Roadmap
 
-O backlog está acompanhado como Issues no GitHub — veja o
-[board de Issues](https://github.com/gabrielrichardy/niche-intelligence/issues).
+Backlog nas [Issues do GitHub](https://github.com/gabrielrichardy/nichemap/issues).
 
 | # | Issue | Escopo |
 | - | ----- | ------ |
-| 1 | [Conectar dados reais do Instagram (token long-lived)](https://github.com/gabrielrichardy/niche-intelligence/issues/1) | `src/lib/instagram.ts` |
-| 2 | [Histórico de crescimento real (snapshots diários)](https://github.com/gabrielrichardy/niche-intelligence/issues/2) | `getDashboardData` (growth) |
-| 3 | [Ativar módulo "Conteúdo" na sidebar](https://github.com/gabrielrichardy/niche-intelligence/issues/3) | `src/components/Sidebar.tsx` |
-| 4 | [Market Radar com dados reais](https://github.com/gabrielrichardy/niche-intelligence/issues/4) | `mockData.market` |
-| 5 | [Pessoas Relevantes + enriquecimento](https://github.com/gabrielrichardy/niche-intelligence/issues/5) | `mockData.people` |
-| 6 | [Oportunidades com scoring real](https://github.com/gabrielrichardy/niche-intelligence/issues/6) | `mockData.opportunities` |
-| 7 | [Busca funcional no Header](https://github.com/gabrielrichardy/niche-intelligence/issues/7) | `src/components/Header.tsx` |
-| 8 | [Adicionar testes automatizados (Vitest)](https://github.com/gabrielrichardy/niche-intelligence/issues/8) | CI / `instagram.ts` |
+| 1 | [Conectar dados reais do Instagram (token long-lived)](https://github.com/gabrielrichardy/nichemap/issues/1) | `src/lib/instagram.ts` |
+| 2 | [Ativar módulo "Conteúdo" na sidebar](https://github.com/gabrielrichardy/nichemap/issues/2) | `src/components/Sidebar.tsx` |
+| 3 | [Market Radar com dados reais](https://github.com/gabrielrichardy/nichemap/issues/3) | `mockData.market` |
+| 4 | [Pessoas Relevantes + enriquecimento](https://github.com/gabrielrichardy/nichemap/issues/4) | `mockData.people` |
+| 5 | [Oportunidades com scoring real](https://github.com/gabrielrichardy/nichemap/issues/5) | `mockData.opportunities` |
+| 6 | [Busca funcional no Header](https://github.com/gabrielrichardy/nichemap/issues/6) | `src/components/Header.tsx` (busca por perfil já entregue) |
+| 7 | [Adicionar testes automatizados (Vitest)](https://github.com/gabrielrichardy/nichemap/issues/7) | Vitest + CI |
+| 8 | [Histórico de crescimento real (snapshots diários)](https://github.com/gabrielrichardy/nichemap/issues/8) | PostgreSQL + `getDashboardData` |
+
+**Próxima entrega:** #8, snapshot diário do perfil no PostgreSQL, para trocar o crescimento estimado por histórico real. Pendências externas: banco autorizado e forma de disparar a coleta diária.

@@ -12,8 +12,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ t
       <Sidebar />
       <div className="md:pl-64">
         <Header target={target} />
-        <main className="px-8 pb-8">
-          <DashboardClient target={target} />
+        <main className="px-4 pb-8 md:px-8">
+          {/* key resets loading/error state when the searched profile changes */}
+          <DashboardClient key={target} target={target} />
         </main>
       </div>
     </div>
