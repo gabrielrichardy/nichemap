@@ -30,11 +30,11 @@ Corrigido em 2026-10-17:
 
 Em aberto:
 
-1. **Sem navegação no celular**: a sidebar é `hidden md:flex`. Hoje só o Dashboard existe, então não há para onde navegar; criar o menu mobile junto do segundo módulo.
-2. **Botões sem ação no painel**: "Ver todos/Ver todas", seletor "Últimos 30 dias" e menu do usuário não fazem nada nem são anunciados como indisponíveis.
-3. Dados ilustrativos fixos ("Gabriel / Social Media", "Plano Pro — Expira em 12/2025").
+1. **Controles sem ação** (issue #23): seletor "Últimos 30 dias", sino de notificações e menu do usuário ("Gabriel / Social Media", fixo).
 
-Estados pertinentes: carregando, erro de rede, dados de exemplo, dados reais, falha da API (cai em exemplo com motivo). Não há estado vazio para perfil sem publicações.
+Resolvido com as páginas de seção: menu horizontal no celular (abaixo de `md`, `aria-current` no item ativo); "Ver todos" dos cards viram links para as seções; card fictício "Plano Pro" removido; o card de temas deixou de dizer "(IA)", porque a análise é por palavras-chave; menu e cabeçalho somem na impressão (`print:hidden`).
+
+Estados pertinentes: carregando, erro de rede, dados de exemplo, dados reais, falha da API (cai em exemplo com motivo). Perfil sem publicações mostra "Nenhuma publicação encontrada" (antes caía em posts de exemplo sem aviso).
 
 ## Manutenção
 

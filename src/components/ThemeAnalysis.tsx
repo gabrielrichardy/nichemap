@@ -6,9 +6,9 @@ export function ThemeAnalysis({ themes }: { themes: ThemeItem[] }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
       <div className="flex items-center gap-2">
-        <h3 className="font-medium text-slate-900">Análise de Temas (IA)</h3>
+        {/* Keyword matching on captions (classifyThemes), not an AI model. */}
+        <h3 className="font-medium text-slate-900">Análise de Temas</h3>
         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-violet-50 text-violet-600">Beta</span>
-        <button className="ml-auto text-xs text-blue-500 font-medium hover:underline">Ver todos</button>
       </div>
       <ul className="mt-4 space-y-3">
         {themes.map((t) => (

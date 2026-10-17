@@ -32,6 +32,7 @@ Testes atuais (Node, sem rede nem banco):
 - `src/lib/logger.test.ts`: redação de segredos nos logs.
 - `src/db/index.test.ts`: ciclo de vida do pool com `pg` mockado (não conecta).
 - `src/app/api/instagram/route.test.ts`: `@perfil` vira `perfil`; alvo inválido responde 400 com mensagem pt-BR sem chamar a API.
+- `src/lib/settings.test.ts`: estados das integrações (faltando / ok / inválido) e garantia de que nenhum valor de variável aparece no resultado.
 - `src/lib/instagram.test.ts`: `targetUsernameSchema` aceita usernames válidos e rejeita injeção na expressão `fields`; sem credenciais ou com `INSTAGRAM_BUSINESS_ID` inválido, devolve mock sem chamar `fetch` e sem expor o valor configurado.
 
 Não há testes de componentes, E2E nem testes contra banco ou API real. Entram junto dos fluxos que precisarem (por exemplo, snapshots diários com banco de teste descartável). Mock de `pg` não prova SQL real.

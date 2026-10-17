@@ -1,4 +1,37 @@
-import { DashboardData } from "./types";
+import { ContentItem, DashboardData } from "./types";
+
+const SAMPLE_CONTENT: ContentItem[] = [
+  {
+    id: "1",
+    type: "Reel",
+    title: "5 erros que seu laboratório não pode cometer",
+    date: "22/08/2025",
+    views: 48200,
+    likes: 3200,
+    comments: 420,
+    multiplier: 4.8,
+  },
+  {
+    id: "2",
+    type: "Carrossel",
+    title: "Como aumentar a eficiência do seu laboratório",
+    date: "15/08/2025",
+    views: 31400,
+    likes: 2100,
+    comments: 310,
+    multiplier: 3.6,
+  },
+  {
+    id: "3",
+    type: "Reel",
+    title: "Tecnologia que transforma o diagnóstico",
+    date: "08/08/2025",
+    views: 28700,
+    likes: 1800,
+    comments: 260,
+    multiplier: 2.9,
+  },
+];
 
 export function buildMockData(username: string): DashboardData {
   return {
@@ -48,38 +81,8 @@ export function buildMockData(username: string): DashboardData {
       { name: "LabExpert", followers: 18900, growthPct: 21.4 },
       { name: "MedCore", followers: 12600, growthPct: 3.8 },
     ],
-    topContent: [
-      {
-        id: "1",
-        type: "Reel",
-        title: "5 erros que seu laboratório não pode cometer",
-        date: "22/08/2025",
-        views: 48200,
-        likes: 3200,
-        comments: 420,
-        multiplier: 4.8,
-      },
-      {
-        id: "2",
-        type: "Carrossel",
-        title: "Como aumentar a eficiência do seu laboratório",
-        date: "15/08/2025",
-        views: 31400,
-        likes: 2100,
-        comments: 310,
-        multiplier: 3.6,
-      },
-      {
-        id: "3",
-        type: "Reel",
-        title: "Tecnologia que transforma o diagnóstico",
-        date: "08/08/2025",
-        views: 28700,
-        likes: 1800,
-        comments: 260,
-        multiplier: 2.9,
-      },
-    ],
+    topContent: SAMPLE_CONTENT,
+    content: SAMPLE_CONTENT,
     people: [
       { name: "Juliana Martins", role: "CEO — LabTech", score: 92 },
       { name: "Rafael Costa", role: "Diretor de Operações — DiagnoPlus", score: 88 },

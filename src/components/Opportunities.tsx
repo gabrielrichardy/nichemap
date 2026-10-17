@@ -1,17 +1,30 @@
 "use client";
 
+import Link from "next/link";
 import { Target, Building2, User } from "lucide-react";
 import { Opportunity } from "@/lib/types";
 
-export function Opportunities({ items }: { items: Opportunity[] }) {
+export function Opportunities({
+  items,
+  moreHref,
+  title = "Oportunidades em foco",
+}: {
+  items: Opportunity[];
+  moreHref?: string;
+  title?: string;
+}) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Target className="w-4 h-4 text-blue-500" />
-          <h3 className="font-medium text-slate-900">Oportunidades em foco</h3>
+          <h3 className="font-medium text-slate-900">{title}</h3>
         </div>
-        <button className="text-xs text-blue-500 font-medium hover:underline">Ver todas</button>
+        {moreHref && (
+          <Link href={moreHref} className="text-xs text-blue-600 font-medium hover:underline">
+            Ver todas
+          </Link>
+        )}
       </div>
       <p className="text-xs text-slate-400 mt-1">Empresas e pessoas com maior potencial para o seu negócio.</p>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">

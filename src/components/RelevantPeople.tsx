@@ -1,14 +1,19 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
 import { Person } from "@/lib/types";
 
-export function RelevantPeople({ people }: { people: Person[] }) {
+import Link from "next/link";
+
+export function RelevantPeople({ people, moreHref }: { people: Person[]; moreHref?: string }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-slate-900">Pessoas Relevantes</h3>
-        <button className="text-xs text-blue-500 font-medium hover:underline">Ver todos</button>
+        {moreHref && (
+          <Link href={moreHref} className="text-xs text-blue-600 font-medium hover:underline">
+            Ver todos
+          </Link>
+        )}
       </div>
       <ul className="mt-3 space-y-3">
         {people.map((p) => (
@@ -19,7 +24,6 @@ export function RelevantPeople({ people }: { people: Person[] }) {
               <p className="text-xs text-slate-400 truncate">{p.role}</p>
             </div>
             <span className="text-xs font-medium text-slate-600">{p.score}</span>
-            <ExternalLink className="w-4 h-4 text-blue-500" />
           </li>
         ))}
       </ul>

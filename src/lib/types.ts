@@ -37,7 +37,7 @@ export interface ContentItem {
   type: "Reel" | "Carrossel" | "Imagem";
   title: string;
   date: string;
-  views: number;
+  views?: number; // not available from business_discovery (live data)
   likes: number;
   comments: number;
   multiplier: number;
@@ -72,6 +72,7 @@ export interface DashboardData {
   themes: ThemeItem[];
   market: MarketProfile[];
   topContent: ContentItem[];
+  content: ContentItem[]; // every fetched post, newest first
   people: Person[];
   opportunities: Opportunity[];
 }

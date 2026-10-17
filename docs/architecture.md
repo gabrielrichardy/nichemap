@@ -22,15 +22,24 @@ Versões exatas ficam no lockfile.
 src/
   app/
     layout.tsx               raiz HTML (lang pt-BR), metadados e meta tag de verificação da Meta (META_VERIFICATION_CODE)
-    page.tsx                 Server Component: lê ?target (ou o padrão do ambiente) e monta Sidebar, Header e DashboardClient
+    page.tsx                 Dashboard: lê ?target e monta AppShell + DashboardClient (busca /api/instagram no cliente)
+    scanner, conteudo, mercado, pessoas, empresas, oportunidades, relatorios/
+                             páginas de seção (Server Components): loadDashboard() + Section
+    configuracoes/page.tsx   estado das integrações via getIntegrationStatus()
     globals.css              tokens CSS e Tailwind
     api/instagram/route.ts   GET: valida ?target e devolve DashboardData (real ou mock)
-  components/                blocos visuais do painel (Client Components)
+  components/
+    AppShell.tsx             Sidebar (menu desktop + menu celular) + Header + <main>
+    Section.tsx              título, erro de perfil inválido e DataSourceBanner das páginas de seção
+    ContentList, PrintButton, DataSourceBanner
     DashboardClient.tsx      busca /api/instagram e distribui os dados
     KpiCards, GrowthChart, ContentTypeDonut, ThemeAnalysis, MarketTable,
     TopContent, RelevantPeople, Opportunities, ProfileHeader, Header, Sidebar
   lib/
-    instagram.ts             Graph API (business_discovery), métricas, temas, fallback mock
+    instagram.ts             Graph API (business_discovery), métricas, temas, fallback mock; resolveTarget()
+    dashboard.ts             loadDashboard()/readTarget() para as páginas de seção (server-only)
+    settings.ts              getIntegrationStatus(): só estados, nunca valores (server-only)
+    nav.ts                   lista das seções e withTarget()
     mockData.ts              dados de exemplo
     types.ts                 DashboardData e tipos de cada bloco
     env-schema.ts / env.ts   validação de ambiente (Zod); env.ts é server-only

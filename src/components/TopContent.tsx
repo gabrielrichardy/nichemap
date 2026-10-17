@@ -1,17 +1,23 @@
 "use client";
 
+import Link from "next/link";
 import { PlayCircle, Images, Eye, Heart, MessageCircle } from "lucide-react";
 import { ContentItem } from "@/lib/types";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
-export function TopContent({ items }: { items: ContentItem[] }) {
+export function TopContent({ items, moreHref }: { items: ContentItem[]; moreHref?: string }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-slate-900">Conteúdos em destaque</h3>
-        <button className="text-xs text-blue-500 font-medium hover:underline">Ver todos</button>
+        {moreHref && (
+          <Link href={moreHref} className="text-xs text-blue-600 font-medium hover:underline">
+            Ver todos
+          </Link>
+        )}
       </div>
+      {items.length === 0 && <p className="mt-3 text-sm text-slate-400">Nenhuma publicação encontrada.</p>}
       <ul className="mt-3 space-y-3">
         {items.slice(0, 3).map((item, i) => (
           <li key={item.id} className="flex gap-3">
@@ -24,9 +30,11 @@ export function TopContent({ items }: { items: ContentItem[] }) {
               </p>
               <p className="text-sm font-medium text-slate-800 truncate">{item.title}</p>
               <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
-                <span className="flex items-center gap-1">
-                  <Eye className="w-3.5 h-3.5" /> {item.views.toLocaleString("pt-BR")}
-                </span>
+                {item.views !== undefined && (
+                  <span className="flex items-center gap-1">
+                    <Eye className="w-3.5 h-3.5" aria-label="Visualizações" /> {item.views.toLocaleString("pt-BR")}
+                  </span>
+                )}
                 <span className="flex items-center gap-1">
                   <Heart className="w-3.5 h-3.5" /> {item.likes.toLocaleString("pt-BR")}
                 </span>
