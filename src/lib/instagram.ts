@@ -1,7 +1,15 @@
+import "server-only";
+import { z } from "zod";
 import { ContentItem, ContentTypeSlice, DashboardData, ThemeItem } from "./types";
 import { buildMockData } from "./mockData";
+import { getInstagramCredentials } from "./env";
+import { logger } from "./logger";
 
 const GRAPH_VERSION = "v25.0";
+
+// Instagram usernames: letters, digits, "." and "_", up to 30 chars. The value is
+// interpolated into the Graph API `fields` expression, so anything else is rejected.
+export const targetUsernameSchema = z.string().regex(/^[A-Za-z0-9._]{1,30}$/);
 
 interface RawMedia {
   id: string;
@@ -106,15 +114,11 @@ async function fetchBusinessDiscovery(
 }
 
 export async function getDashboardData(targetUsername: string): Promise<DashboardData> {
-  const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
-  const igBusinessId = process.env.INSTAGRAM_BUSINESS_ID;
-
-  if (!accessToken || !igBusinessId) {
-    return buildMockData(targetUsername);
-  }
-
   try {
-    const data = await fetchBusinessDiscovery(targetUsername, igBusinessId, accessToken);
+    const credentials = getInstagramCredentials();
+    if (!credentials) return buildMockData(targetUsername);
+
+    const data = await fetchBusinessDiscovery(targetUsername, credentials.businessId, credentials.accessToken);
     const media = data.media?.data ?? [];
 
     const totalLikes = media.reduce((s, m) => s + (m.like_count ?? 0), 0);
@@ -186,8 +190,10 @@ export async function getDashboardData(targetUsername: string): Promise<Dashboar
       opportunities: buildMockData(targetUsername).opportunities,
     };
   } catch (err) {
+    const message = (err as Error).message;
+    logger.warn({ target: targetUsername, error: message }, "Instagram data unavailable, serving mock data");
     const mock = buildMockData(targetUsername);
-    mock.note = `Não foi possível buscar dados reais agora (${(err as Error).message}). Mostrando dados de exemplo.`;
+    mock.note = `Não foi possível buscar dados reais agora (${message}). Mostrando dados de exemplo.`;
     return mock;
   }
 }

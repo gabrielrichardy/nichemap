@@ -9,7 +9,7 @@ async function getMetaVerification(): Promise<string | undefined> {
 export async function generateMetadata(): Promise<Metadata> {
   const metaVerification = await getMetaVerification();
   return {
-    title: "Niche Intelligence",
+    title: "Nichemap",
     description:
       "Painel de inteligência para social media analisar perfis, conteúdos e mercado.",
     other: metaVerification

@@ -4,7 +4,7 @@ export function buildMockData(username: string): DashboardData {
   return {
     source: "mock",
     fetchedAt: new Date().toISOString(),
-    note: "Dados de exemplo — configure INSTAGRAM_ACCESS_TOKEN e INSTAGRAM_BUSINESS_ID no .env.local para ver dados reais.",
+    note: "configure INSTAGRAM_ACCESS_TOKEN e INSTAGRAM_BUSINESS_ID no .env.local para ver dados reais.",
     profile: {
       username,
       name: "BioDev",
