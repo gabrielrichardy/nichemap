@@ -7,7 +7,16 @@ export interface Kpis {
   publicacoesGrowthPct: number;
   profileScore: number;
   profileScoreLabel: string;
+  profileScoreBreakdown: ScoreCriterion[]; // what makes up the score, with tips where points were lost
   growthLabel?: string; // comparison window shown next to growth percentages
+}
+
+export interface ScoreCriterion {
+  label: string;
+  points: number;
+  max: number;
+  detail: string; // the measured value behind the points
+  tip?: string; // what to improve; only when points < max
 }
 
 export interface GrowthPoint {
