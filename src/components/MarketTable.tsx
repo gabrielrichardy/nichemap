@@ -1,14 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { TrendingUp } from "lucide-react";
 import { MarketProfile } from "@/lib/types";
 
-export function MarketTable({ market }: { market: MarketProfile[] }) {
+export function MarketTable({ market, moreHref }: { market: MarketProfile[]; moreHref?: string }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-slate-900">Mercado</h3>
-        <button className="text-xs text-blue-500 font-medium hover:underline">Ver todos</button>
+        {moreHref && (
+          <Link href={moreHref} className="text-xs text-blue-600 font-medium hover:underline">
+            Ver todos
+          </Link>
+        )}
       </div>
       <table className="w-full mt-3 text-sm">
         <thead>

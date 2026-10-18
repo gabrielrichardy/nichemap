@@ -11,7 +11,9 @@ import { MarketTable } from "./MarketTable";
 import { TopContent } from "./TopContent";
 import { RelevantPeople } from "./RelevantPeople";
 import { Opportunities } from "./Opportunities";
-import { AlertCircle, Loader2, Radio } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { withTarget } from "@/lib/nav";
+import { DataSourceBanner } from "./DataSourceBanner";
 
 export function DashboardClient({ target }: { target: string }) {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -55,18 +57,7 @@ export function DashboardClient({ target }: { target: string }) {
 
   return (
     <div className="space-y-4 pb-10">
-      {data.note && (
-        <div
-          className={`flex items-center gap-2 text-xs rounded-xl px-4 py-2.5 ${
-            data.source === "live" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
-          }`}
-        >
-          <Radio className="w-3.5 h-3.5" />
-          <span>
-            {data.source === "live" ? "Dados reais do Instagram" : "Dados de exemplo"} — {data.note}
-          </span>
-        </div>
-      )}
+      <DataSourceBanner data={data} />
 
       <ProfileHeader name={data.profile.name} username={data.profile.username} bio={data.profile.bio} />
 
@@ -84,17 +75,17 @@ export function DashboardClient({ target }: { target: string }) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <ThemeAnalysis themes={data.themes} />
-            <MarketTable market={data.market} />
+            <MarketTable market={data.market} moreHref={withTarget("/mercado", target)} />
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4">
-          <TopContent items={data.topContent} />
-          <RelevantPeople people={data.people} />
+          <TopContent items={data.topContent} moreHref={withTarget("/conteudo", target)} />
+          <RelevantPeople people={data.people} moreHref={withTarget("/pessoas", target)} />
         </div>
       </div>
 
-      <Opportunities items={data.opportunities} />
+      <Opportunities items={data.opportunities} moreHref={withTarget("/oportunidades", target)} />
     </div>
   );
 }

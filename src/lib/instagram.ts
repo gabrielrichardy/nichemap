@@ -5,11 +5,20 @@ import { buildMockData } from "./mockData";
 import { getInstagramCredentials } from "./env";
 import { logger } from "./logger";
 
-const GRAPH_VERSION = "v25.0";
+export const GRAPH_VERSION = "v25.0";
 
 // Instagram usernames: letters, digits, "." and "_", up to 30 chars. The value is
 // interpolated into the Graph API `fields` expression, so anything else is rejected.
 export const targetUsernameSchema = z.string().regex(/^[A-Za-z0-9._]{1,30}$/);
+
+export const INVALID_TARGET_MESSAGE = "Perfil inválido: use só letras, números, ponto e sublinhado (até 30).";
+
+// Profile to analyse: the ?target value ("@perfil" accepted) or the configured default.
+// Returns null when the username is invalid.
+export function resolveTarget(raw?: string | null): string | null {
+  const value = (raw || process.env.INSTAGRAM_TARGET_USERNAME || "biodev").trim().replace(/^@/, "");
+  return targetUsernameSchema.safeParse(value).success ? value : null;
+}
 
 interface RawMedia {
   id: string;
@@ -130,20 +139,23 @@ export async function getDashboardData(targetUsername: string): Promise<Dashboar
 
     const avgLikes = media.length ? totalLikes / media.length : 0;
 
-    const topContent: ContentItem[] = [...media]
+    // business_discovery has no view counts, so `views` stays unset for live data.
+    const toContentItem = (m: RawMedia): ContentItem => ({
+      id: m.id,
+      type: mapContentType(m.media_type),
+      title: (m.caption ?? "Sem legenda").split("\n")[0].slice(0, 90),
+      date: new Date(m.timestamp).toLocaleDateString("pt-BR"),
+      likes: m.like_count ?? 0,
+      comments: m.comments_count ?? 0,
+      multiplier: avgLikes ? Number(((m.like_count ?? 0) / avgLikes).toFixed(1)) : 0,
+      permalink: m.permalink,
+    });
+
+    const topContent = [...media]
       .sort((a, b) => (b.like_count ?? 0) - (a.like_count ?? 0))
       .slice(0, 5)
-      .map((m) => ({
-        id: m.id,
-        type: mapContentType(m.media_type),
-        title: (m.caption ?? "Sem legenda").split("\n")[0].slice(0, 90),
-        date: new Date(m.timestamp).toLocaleDateString("pt-BR"),
-        views: m.like_count ?? 0,
-        likes: m.like_count ?? 0,
-        comments: m.comments_count ?? 0,
-        multiplier: avgLikes ? Number(((m.like_count ?? 0) / avgLikes).toFixed(1)) : 0,
-        permalink: m.permalink,
-      }));
+      .map(toContentItem);
+    const content = [...media].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).map(toContentItem);
 
     const profileScore = Math.max(
       0,
@@ -185,7 +197,8 @@ export async function getDashboardData(targetUsername: string): Promise<Dashboar
       contentTypes: buildContentTypeBreakdown(media),
       themes: classifyThemes(media.map((m) => m.caption ?? "")),
       market: buildMockData(targetUsername).market,
-      topContent: topContent.length ? topContent : buildMockData(targetUsername).topContent,
+      topContent,
+      content,
       people: buildMockData(targetUsername).people,
       opportunities: buildMockData(targetUsername).opportunities,
     };

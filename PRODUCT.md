@@ -17,7 +17,7 @@ O Nichemap reúne essas informações num painel único, pensado para ser consul
 
 1. **Ver o painel de um perfil.** Entrada: perfil buscado no topo da página (`?target=`, aceita `@perfil`) ou o padrão `INSTAGRAM_TARGET_USERNAME`. Ação: abrir `/`. Resultado: cabeçalho do perfil, KPIs (seguidores, engajamento médio, publicações, profile score), gráfico de crescimento, tipos de conteúdo e temas.
 2. **Identificar o conteúdo que performa.** Resultado: lista dos 5 conteúdos com mais curtidas, com tipo, data, curtidas, comentários, multiplicador sobre a média e link para o post.
-3. **Explorar mercado, pessoas e oportunidades.** Resultado: tabelas de perfis do mercado, pessoas relevantes e oportunidades (empresas/pessoas) com score.
+3. **Navegar pelas seções** (menu lateral no desktop, menu horizontal no celular), mantendo o perfil buscado: Profile Scanner, Conteúdo (até 25 publicações recentes), Market Radar, Pessoas, Empresas, Oportunidades, Relatórios (impressão/PDF) e Configurações (estado das integrações, sem mostrar valores).
 4. **Saber se o dado é real.** O painel mostra um aviso indicando se os dados vêm da API do Instagram ou são de exemplo.
 
 ## MVP
@@ -25,14 +25,13 @@ O Nichemap reúne essas informações num painel único, pensado para ser consul
 Em ordem de prioridade:
 
 1. Painel do perfil com dados reais da Instagram Graph API (business discovery) e fallback para dados de exemplo. **Implementado.**
-2. Leitura confortável no celular (mobile-first). **Parcial:** o painel renderiza a 375px sem rolagem horizontal, mas não há navegação no celular.
+2. Leitura confortável no celular (mobile-first). **Implementado:** 375 px sem rolagem horizontal e menu de seções no celular.
 3. Histórico real de crescimento a partir de snapshots diários guardados no PostgreSQL. **Pendente** — hoje o histórico com dados reais é estimado.
 4. Mercado, pessoas relevantes e oportunidades com fonte real. **Pendente** — dependem de fontes ainda não escolhidas.
 
 ## Fora de escopo (por enquanto)
 
-- Módulos do menu além do Dashboard (Profile Scanner, Conteúdo, Market Radar, Pessoas, Empresas, Oportunidades, Relatórios, Configurações): aparecem na sidebar, mas estão desabilitados.
-- Login, planos/cobrança ("Plano Pro" na sidebar é ilustrativo), notificações (o sino com "3" é ilustrativo).
+- Login, planos/cobrança e notificações. Controles ainda sem ação estão na issue #23.
 - App nativo: o produto é web mobile-first (decisão do usuário, 2026-10-17). React Native/Expo não entra.
 
 ## Requisitos

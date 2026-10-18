@@ -3,13 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { getDashboardData } from "@/lib/instagram";
 import { GET } from "./route";
 
-vi.mock("@/lib/instagram", async () => {
-  const { z } = await import("zod");
-  return {
-    targetUsernameSchema: z.string().regex(/^[A-Za-z0-9._]{1,30}$/),
-    getDashboardData: vi.fn(async (target: string) => ({ source: "mock", profile: { username: target } })),
-  };
-});
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/instagram", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/instagram")>()),
+  getDashboardData: vi.fn(async (target: string) => ({ source: "mock", profile: { username: target } })),
+}));
 
 const call = (target: string) =>
   GET(new NextRequest(`http://localhost/api/instagram?target=${encodeURIComponent(target)}`));

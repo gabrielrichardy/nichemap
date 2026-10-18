@@ -67,5 +67,8 @@ Backlog nas [Issues do GitHub](https://github.com/gabrielrichardy/nichemap/issue
 | 6 | [Busca funcional no Header](https://github.com/gabrielrichardy/nichemap/issues/6) | `src/components/Header.tsx` (busca por perfil já entregue) |
 | 7 | [Adicionar testes automatizados (Vitest)](https://github.com/gabrielrichardy/nichemap/issues/7) | Vitest + CI |
 | 8 | [Histórico de crescimento real (snapshots diários)](https://github.com/gabrielrichardy/nichemap/issues/8) | PostgreSQL + `getDashboardData` |
+| 15–21 | Páginas das seções: [Profile Scanner](https://github.com/gabrielrichardy/nichemap/issues/15), [Market Radar](https://github.com/gabrielrichardy/nichemap/issues/16), [Pessoas](https://github.com/gabrielrichardy/nichemap/issues/17), [Empresas](https://github.com/gabrielrichardy/nichemap/issues/18), [Oportunidades](https://github.com/gabrielrichardy/nichemap/issues/19), [Relatórios](https://github.com/gabrielrichardy/nichemap/issues/20), [Configurações](https://github.com/gabrielrichardy/nichemap/issues/21) | `src/app/*/page.tsx` |
+| 22 | [Navegação no celular e links "Ver todos"](https://github.com/gabrielrichardy/nichemap/issues/22) | `Sidebar`, cards |
+| 23 | [Controles ainda sem ação](https://github.com/gabrielrichardy/nichemap/issues/23) | período, notificações, menu do usuário |
 
 **Próxima entrega:** #8, snapshot diário do perfil no PostgreSQL, para trocar o crescimento estimado por histórico real. Pendências externas: banco autorizado e forma de disparar a coleta diária.
