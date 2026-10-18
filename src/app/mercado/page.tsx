@@ -12,10 +12,10 @@ export default async function MercadoPage({ searchParams }: { searchParams: Page
     <AppShell target={result.target}>
       <Section
         title="Market Radar"
-        description="Perfis do mercado com seguidores e crescimento. Ainda sem fonte real de dados (issue #3)."
+        description="Concorrentes definidos em INSTAGRAM_COMPETITORS, com seguidores reais e crescimento a partir da coleta diária. Sem concorrentes configurados, mostra dados de exemplo."
         result={result}
       >
-        {(data) => <MarketTable market={data.market} />}
+        {(data) => <MarketTable market={data.market} sample={data.sampleSections.includes("market")} />}
       </Section>
     </AppShell>
   );

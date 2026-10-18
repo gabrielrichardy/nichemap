@@ -45,3 +45,60 @@ describe("getDashboardData", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe("getDashboardData with live data", () => {
+  const profile = (username: string, followers: number) => ({
+    business_discovery: {
+      username,
+      name: username.toUpperCase(),
+      biography: "bio",
+      followers_count: followers,
+      media_count: 2,
+      media: {
+        data: [
+          { id: "1", media_type: "IMAGE", timestamp: "2026-10-10T10:00:00+0000", like_count: 90, comments_count: 10 },
+          { id: "2", media_type: "VIDEO", timestamp: "2026-10-12T10:00:00+0000", like_count: 100 },
+        ],
+      },
+    },
+  });
+
+  const stubGraph = () =>
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const name = /business_discovery\.username\(([^)]+)\)/.exec(decodeURIComponent(url))?.[1] ?? "";
+        if (name === "broken") return Response.json({ error: { code: 100, message: "not found" } }, { status: 400 });
+        return Response.json(profile(name, name === "biodev" ? 1000 : 5000));
+      }),
+    );
+
+  it("never draws an estimated curve and flags blocks without a real source", async () => {
+    vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "test-token");
+    vi.stubEnv("INSTAGRAM_BUSINESS_ID", "123");
+    vi.stubEnv("INSTAGRAM_COMPETITORS", "");
+    vi.stubEnv("DATABASE_URL", "");
+    stubGraph();
+
+    const data = await getDashboardData("biodev");
+    expect(data.source).toBe("live");
+    expect(data.growth).toEqual([]);
+    expect(data.kpis.seguidoresGrowthPct).toBe(0);
+    expect(data.kpis.engajamentoPct).toBe(10);
+    expect(data.content.map((c) => c.id)).toEqual(["2", "1"]);
+    expect(data.content.every((c) => c.views === undefined)).toBe(true);
+    expect(data.sampleSections).toEqual(["market", "people", "opportunities"]);
+  });
+
+  it("uses real competitors for the market and skips the ones that fail", async () => {
+    vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "test-token");
+    vi.stubEnv("INSTAGRAM_BUSINESS_ID", "123");
+    vi.stubEnv("INSTAGRAM_COMPETITORS", "@LabTech, broken");
+    vi.stubEnv("DATABASE_URL", "");
+    stubGraph();
+
+    const data = await getDashboardData("biodev");
+    expect(data.market).toEqual([{ name: "LABTECH", followers: 5000, growthPct: null }]);
+    expect(data.sampleSections).toEqual(["people", "opportunities"]);
+  });
+});

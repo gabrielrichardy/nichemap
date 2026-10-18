@@ -15,7 +15,13 @@ export default async function OportunidadesPage({ searchParams }: { searchParams
         description="Empresas e pessoas com maior potencial para o seu negócio. Scoring real pendente (issue #5)."
         result={result}
       >
-        {(data) => <Opportunities title="Todas as oportunidades" items={data.opportunities} />}
+        {(data) => (
+          <Opportunities
+            title="Todas as oportunidades"
+            items={data.opportunities}
+            sample={data.sampleSections.includes("opportunities")}
+          />
+        )}
       </Section>
     </AppShell>
   );

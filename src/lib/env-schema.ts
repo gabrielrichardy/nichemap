@@ -9,6 +9,10 @@ export const databaseUrlSchema = z.string().refine((value) => {
   }
 });
 
+// Instagram usernames: letters, digits, "." and "_", up to 30 chars. The value is
+// interpolated into the Graph API `fields` expression, so anything else is rejected.
+export const instagramUsernameSchema = z.string().regex(/^[A-Za-z0-9._]{1,30}$/);
+
 // Interpolated into the Graph API URL path, so only a numeric ID is accepted.
 export const instagramBusinessIdSchema = z.string().regex(/^\d+$/);
 

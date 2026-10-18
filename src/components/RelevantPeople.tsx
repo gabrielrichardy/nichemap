@@ -3,12 +3,24 @@
 import { Person } from "@/lib/types";
 
 import Link from "next/link";
+import { SampleBadge } from "./SampleBadge";
 
-export function RelevantPeople({ people, moreHref }: { people: Person[]; moreHref?: string }) {
+export function RelevantPeople({
+  people,
+  moreHref,
+  sample,
+}: {
+  people: Person[];
+  moreHref?: string;
+  sample?: boolean;
+}) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
       <div className="flex items-center justify-between">
-        <h3 className="font-medium text-slate-900">Pessoas Relevantes</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="font-medium text-slate-900">Pessoas Relevantes</h3>
+          <SampleBadge show={sample} />
+        </div>
         {moreHref && (
           <Link href={moreHref} className="text-xs text-blue-600 font-medium hover:underline">
             Ver todos

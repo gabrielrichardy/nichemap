@@ -3,15 +3,18 @@
 import Link from "next/link";
 import { Target, Building2, User } from "lucide-react";
 import { Opportunity } from "@/lib/types";
+import { SampleBadge } from "./SampleBadge";
 
 export function Opportunities({
   items,
   moreHref,
   title = "Oportunidades em foco",
+  sample,
 }: {
   items: Opportunity[];
   moreHref?: string;
   title?: string;
+  sample?: boolean;
 }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
@@ -19,6 +22,7 @@ export function Opportunities({
         <div className="flex items-center gap-2">
           <Target className="w-4 h-4 text-blue-500" />
           <h3 className="font-medium text-slate-900">{title}</h3>
+          <SampleBadge show={sample} />
         </div>
         {moreHref && (
           <Link href={moreHref} className="text-xs text-blue-600 font-medium hover:underline">

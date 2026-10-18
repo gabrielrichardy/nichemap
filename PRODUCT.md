@@ -26,8 +26,8 @@ Em ordem de prioridade:
 
 1. Painel do perfil com dados reais da Instagram Graph API (business discovery) e fallback para dados de exemplo. **Implementado.**
 2. Leitura confortável no celular (mobile-first). **Implementado:** 375 px sem rolagem horizontal e menu de seções no celular.
-3. Histórico real de crescimento a partir de snapshots diários guardados no PostgreSQL. **Pendente** — hoje o histórico com dados reais é estimado.
-4. Mercado, pessoas relevantes e oportunidades com fonte real. **Pendente** — dependem de fontes ainda não escolhidas.
+3. Histórico real de crescimento a partir de snapshots diários guardados no PostgreSQL. **Implementado no código** (coleta diária + tabela); em produção falta criar o banco e o `CRON_SECRET`.
+4. Mercado com fonte real: **implementado** via concorrentes configurados (`INSTAGRAM_COMPETITORS`). Pessoas relevantes e oportunidades: **pendentes** (#4, #5), dependem de escolher fontes/critérios; aparecem com o selo “Exemplo”.
 
 ## Fora de escopo (por enquanto)
 

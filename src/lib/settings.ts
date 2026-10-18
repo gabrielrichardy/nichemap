@@ -1,6 +1,7 @@
 import "server-only";
-import { getDatabaseUrl, getInstagramCredentials } from "./env";
-import { GRAPH_VERSION, resolveTarget } from "./instagram";
+import { getCompetitorUsernames, getDatabaseUrl, getInstagramCredentials } from "./env";
+import { checkConnection, GRAPH_VERSION } from "./graph";
+import { resolveTarget } from "./instagram";
 
 export type IntegrationState = "ok" | "missing" | "invalid";
 
@@ -40,6 +41,18 @@ export function getIntegrationStatus() {
       help: "Necessário para o histórico diário de crescimento (issue #8).",
     },
     {
+      name: "Concorrentes (Market Radar)",
+      variables: "INSTAGRAM_COMPETITORS",
+      state: stateOf(isSet("INSTAGRAM_COMPETITORS"), getCompetitorUsernames),
+      help: "Perfis separados por vírgula; sem eles o Market Radar mostra dados de exemplo.",
+    },
+    {
+      name: "Coleta diária (Vercel Cron)",
+      variables: "CRON_SECRET",
+      state: stateOf(isSet("CRON_SECRET")),
+      help: "Protege /api/cron/snapshot; a Vercel envia esse segredo ao chamar a coleta.",
+    },
+    {
       name: "Verificação de domínio Meta",
       variables: "META_VERIFICATION_CODE",
       state: stateOf(isSet("META_VERIFICATION_CODE")),
@@ -47,4 +60,21 @@ export function getIntegrationStatus() {
     },
   ];
   return { integrations, defaultTarget: resolveTarget(undefined), graphVersion: GRAPH_VERSION };
+}
+
+// Live check of the Instagram token: "configured" is not enough, tokens expire.
+export async function checkInstagramConnection(): Promise<{ ok: true } | { ok: false; message: string } | null> {
+  let credentials;
+  try {
+    credentials = getInstagramCredentials();
+  } catch {
+    return null; // invalid configuration is already reported by getIntegrationStatus
+  }
+  if (!credentials) return null;
+  try {
+    await checkConnection(credentials);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, message: (err as Error).message };
+  }
 }

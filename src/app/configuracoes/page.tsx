@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/AppShell";
 import { readTarget, type PageSearchParams } from "@/lib/dashboard";
-import { getIntegrationStatus, type IntegrationState } from "@/lib/settings";
+import { checkInstagramConnection, getIntegrationStatus, type IntegrationState } from "@/lib/settings";
 
 export const metadata: Metadata = { title: "Configurações · Nichemap" };
 
@@ -14,6 +14,7 @@ const STATE_LABEL: Record<IntegrationState, { text: string; className: string }>
 export default async function ConfiguracoesPage({ searchParams }: { searchParams: PageSearchParams }) {
   const target = await readTarget(searchParams);
   const { integrations, defaultTarget, graphVersion } = getIntegrationStatus();
+  const connection = await checkInstagramConnection();
 
   return (
     <AppShell target={target}>
@@ -34,6 +35,11 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
                 <p className="text-xs text-slate-500">
                   <code>{i.variables}</code> — {i.help}
                 </p>
+                {i.name === "Instagram Graph API" && connection && (
+                  <p className={`text-xs mt-1 ${connection.ok ? "text-emerald-700" : "text-rose-700"}`}>
+                    {connection.ok ? "Conexão testada agora: token válido." : `Conexão testada agora: ${connection.message}`}
+                  </p>
+                )}
               </div>
               <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATE_LABEL[i.state].className}`}>
                 {STATE_LABEL[i.state].text}

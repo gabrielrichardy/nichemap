@@ -1,42 +1,25 @@
 import "server-only";
-import { z } from "zod";
-import { ContentItem, ContentTypeSlice, DashboardData, ThemeItem } from "./types";
 import { buildMockData } from "./mockData";
-import { getInstagramCredentials } from "./env";
+import { getCompetitorUsernames, getInstagramCredentials, isDatabaseConfigured } from "./env";
+import { instagramUsernameSchema } from "./env-schema";
+import { computeEngagementPct, fetchProfile, type RawBusinessDiscovery, type RawMedia } from "./graph";
+import { dayInBrazil, percentChange, summarizeGrowth, withToday, type SnapshotPoint } from "./growth";
 import { logger } from "./logger";
+import { getRecentSnapshots, saveSnapshot } from "./snapshots";
+import type { ContentItem, ContentTypeSlice, DashboardData, MarketProfile, SampleSection, ThemeItem } from "./types";
 
-export const GRAPH_VERSION = "v25.0";
+export { GRAPH_VERSION } from "./graph";
 
-// Instagram usernames: letters, digits, "." and "_", up to 30 chars. The value is
-// interpolated into the Graph API `fields` expression, so anything else is rejected.
-export const targetUsernameSchema = z.string().regex(/^[A-Za-z0-9._]{1,30}$/);
+export const targetUsernameSchema = instagramUsernameSchema;
 
 export const INVALID_TARGET_MESSAGE = "Perfil inválido: use só letras, números, ponto e sublinhado (até 30).";
 
 // Profile to analyse: the ?target value ("@perfil" accepted) or the configured default.
+// Lowercased because Instagram usernames are case-insensitive and snapshots are keyed by them.
 // Returns null when the username is invalid.
 export function resolveTarget(raw?: string | null): string | null {
-  const value = (raw || process.env.INSTAGRAM_TARGET_USERNAME || "biodev").trim().replace(/^@/, "");
+  const value = (raw || process.env.INSTAGRAM_TARGET_USERNAME || "biodev").trim().replace(/^@/, "").toLowerCase();
   return targetUsernameSchema.safeParse(value).success ? value : null;
-}
-
-interface RawMedia {
-  id: string;
-  caption?: string;
-  media_type: "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM";
-  like_count?: number;
-  comments_count?: number;
-  timestamp: string;
-  permalink?: string;
-}
-
-interface RawBusinessDiscovery {
-  username: string;
-  name?: string;
-  biography?: string;
-  followers_count: number;
-  media_count: number;
-  media?: { data: RawMedia[] };
 }
 
 const THEME_KEYWORDS: { label: string; color: string; keywords: string[] }[] = [
@@ -98,28 +81,59 @@ function buildContentTypeBreakdown(media: RawMedia[]): ContentTypeSlice[] {
   }));
 }
 
-async function fetchBusinessDiscovery(
-  targetUsername: string,
-  igBusinessId: string,
-  accessToken: string
-): Promise<RawBusinessDiscovery> {
-  const fields =
-    "business_discovery.username(" +
-    targetUsername +
-    "){username,name,biography,followers_count,media_count,media.limit(25){caption,media_type,like_count,comments_count,timestamp,permalink}}";
-
-  const url = `https://graph.facebook.com/${GRAPH_VERSION}/${igBusinessId}?fields=${encodeURIComponent(
-    fields
-  )}&access_token=${accessToken}`;
-
-  const res = await fetch(url, { cache: "no-store" });
-  const json = await res.json();
-
-  if (!res.ok || json.error) {
-    throw new Error(json?.error?.message || `Instagram Graph API respondeu ${res.status}`);
+// An invalid INSTAGRAM_COMPETITORS must not take the whole dashboard down.
+function competitorsOrNone(): string[] {
+  try {
+    return getCompetitorUsernames();
+  } catch (err) {
+    logger.warn({ error: (err as Error).message }, "Ignoring invalid INSTAGRAM_COMPETITORS");
+    return [];
   }
+}
 
-  return json.business_discovery as RawBusinessDiscovery;
+// History is optional: without a database (or if it fails) the dashboard still works.
+async function loadHistory(usernames: string[]): Promise<Map<string, SnapshotPoint[]>> {
+  if (!isDatabaseConfigured()) return new Map();
+  try {
+    return await getRecentSnapshots(usernames);
+  } catch (err) {
+    logger.warn({ error: (err as Error).message }, "Snapshot history unavailable");
+    return new Map();
+  }
+}
+
+function buildMarket(
+  competitors: string[],
+  results: PromiseSettledResult<RawBusinessDiscovery>[],
+  history: Map<string, SnapshotPoint[]>,
+): MarketProfile[] {
+  return results
+    .flatMap((r, i) => {
+      if (r.status === "rejected") {
+        logger.warn({ competitor: competitors[i], error: (r.reason as Error)?.message }, "Competitor unavailable");
+        return [];
+      }
+      const oldest = history.get(competitors[i])?.[0];
+      return [
+        {
+          name: r.value.name || `@${r.value.username}`,
+          followers: r.value.followers_count,
+          growthPct: oldest ? percentChange(r.value.followers_count, oldest.followers) : null,
+        },
+      ];
+    })
+    .sort((a, b) => b.followers - a.followers);
+}
+
+function buildNote(days: number | null, sampleSections: SampleSection[]): string {
+  const history =
+    days !== null
+      ? `Crescimento real dos últimos ${days} ${days === 1 ? "dia" : "dias"}.`
+      : isDatabaseConfigured()
+        ? "Histórico de crescimento em coleta: o gráfico aparece a partir do segundo dia."
+        : "Sem banco configurado, ainda não há histórico de crescimento.";
+  const samples = sampleSections.length ? " Blocos marcados como “Exemplo” ainda não têm fonte real." : "";
+  return `Perfil, publicações, conteúdos e temas vêm da API do Instagram. ${history}${samples}`;
 }
 
 export async function getDashboardData(targetUsername: string): Promise<DashboardData> {
@@ -127,16 +141,15 @@ export async function getDashboardData(targetUsername: string): Promise<Dashboar
     const credentials = getInstagramCredentials();
     if (!credentials) return buildMockData(targetUsername);
 
-    const data = await fetchBusinessDiscovery(targetUsername, credentials.businessId, credentials.accessToken);
+    const competitors = competitorsOrNone();
+    const [data, history, competitorResults] = await Promise.all([
+      fetchProfile(targetUsername, credentials),
+      loadHistory([targetUsername, ...competitors]),
+      Promise.allSettled(competitors.map((c) => fetchProfile(c, credentials, false))),
+    ]);
     const media = data.media?.data ?? [];
-
+    const engajamentoPct = computeEngagementPct(media, data.followers_count);
     const totalLikes = media.reduce((s, m) => s + (m.like_count ?? 0), 0);
-    const totalComments = media.reduce((s, m) => s + (m.comments_count ?? 0), 0);
-    const avgEngagementPerPost = media.length ? (totalLikes + totalComments) / media.length : 0;
-    const engajamentoPct = data.followers_count
-      ? Number(((avgEngagementPerPost / data.followers_count) * 100).toFixed(1))
-      : 0;
-
     const avgLikes = media.length ? totalLikes / media.length : 0;
 
     // business_discovery has no view counts, so `views` stays unset for live data.
@@ -167,17 +180,23 @@ export async function getDashboardData(targetUsername: string): Promise<Dashboar
       )
     );
 
-    const growthSeed = data.followers_count;
-    const growth = [0.94, 0.96, 0.98, 0.995, 1].map((factor, i) => ({
-      date: ["-28d", "-21d", "-14d", "-7d", "hoje"][i],
-      value: Math.round(growthSeed * factor),
-    }));
+    const today: SnapshotPoint = {
+      takenOn: dayInBrazil(new Date()),
+      followers: data.followers_count,
+      mediaCount: data.media_count,
+      engagementPct: engajamentoPct,
+    };
+    const summary = summarizeGrowth(withToday(history.get(targetUsername) ?? [], today));
+
+    const mock = buildMockData(targetUsername);
+    const sampleSections: SampleSection[] = competitors.length
+      ? ["people", "opportunities"]
+      : ["market", "people", "opportunities"];
 
     return {
       source: "live",
       fetchedAt: new Date().toISOString(),
-      note:
-        "Seguidores, publicações, conteúdos em destaque e temas vêm da API do Instagram em tempo real. O histórico de crescimento é estimado até acumularmos snapshots diários reais.",
+      note: buildNote(summary?.days ?? null, sampleSections),
       profile: {
         username: data.username,
         name: data.name ?? data.username,
@@ -185,22 +204,24 @@ export async function getDashboardData(targetUsername: string): Promise<Dashboar
       },
       kpis: {
         seguidores: data.followers_count,
-        seguidoresGrowthPct: 0,
+        seguidoresGrowthPct: summary?.followersPct ?? 0,
         engajamentoPct,
-        engajamentoGrowthPct: 0,
+        engajamentoGrowthPct: summary?.engagementPct ?? 0,
         publicacoes: data.media_count,
-        publicacoesGrowthPct: 0,
+        publicacoesGrowthPct: summary?.mediaPct ?? 0,
         profileScore,
         profileScoreLabel: profileScore >= 80 ? "Ótimo" : profileScore >= 60 ? "Bom" : profileScore >= 40 ? "Regular" : "Atenção",
+        growthLabel: summary ? `em ${summary.days} ${summary.days === 1 ? "dia" : "dias"}` : undefined,
       },
-      growth,
+      growth: summary?.growth ?? [],
       contentTypes: buildContentTypeBreakdown(media),
       themes: classifyThemes(media.map((m) => m.caption ?? "")),
-      market: buildMockData(targetUsername).market,
+      market: competitors.length ? buildMarket(competitors, competitorResults, history) : mock.market,
       topContent,
       content,
-      people: buildMockData(targetUsername).people,
-      opportunities: buildMockData(targetUsername).opportunities,
+      people: mock.people,
+      opportunities: mock.opportunities,
+      sampleSections,
     };
   } catch (err) {
     const message = (err as Error).message;
@@ -209,4 +230,41 @@ export async function getDashboardData(targetUsername: string): Promise<Dashboar
     mock.note = `Não foi possível buscar dados reais agora (${message}). Mostrando dados de exemplo.`;
     return mock;
   }
+}
+
+export interface CollectResult {
+  takenOn: string;
+  saved: string[];
+  failed: { username: string; error: string }[];
+}
+
+// Daily job: one snapshot per tracked profile (default target + competitors). Live data only.
+export async function collectDailySnapshots(): Promise<CollectResult> {
+  const credentials = getInstagramCredentials();
+  if (!credentials) throw new Error("Instagram não configurado (INSTAGRAM_ACCESS_TOKEN e INSTAGRAM_BUSINESS_ID).");
+  const target = resolveTarget(undefined);
+  const usernames = [...new Set([...(target ? [target] : []), ...getCompetitorUsernames()])];
+  const takenOn = dayInBrazil(new Date());
+
+  const results = await Promise.allSettled(
+    usernames.map(async (username) => {
+      const profile = await fetchProfile(username, credentials);
+      await saveSnapshot({
+        username,
+        takenOn,
+        followers: profile.followers_count,
+        mediaCount: profile.media_count,
+        engagementPct: computeEngagementPct(profile.media?.data ?? [], profile.followers_count),
+      });
+    }),
+  );
+
+  return {
+    takenOn,
+    saved: usernames.filter((_, i) => results[i].status === "fulfilled"),
+    failed: usernames.flatMap((username, i) => {
+      const r = results[i];
+      return r.status === "rejected" ? [{ username, error: (r.reason as Error)?.message ?? "erro desconhecido" }] : [];
+    }),
+  };
 }

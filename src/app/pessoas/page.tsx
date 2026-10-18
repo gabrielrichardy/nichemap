@@ -15,7 +15,7 @@ export default async function PessoasPage({ searchParams }: { searchParams: Page
         description="Pessoas relevantes no nicho, com cargo e score. Ainda sem fonte real de dados (issue #4)."
         result={result}
       >
-        {(data) => <RelevantPeople people={data.people} />}
+        {(data) => <RelevantPeople people={data.people} sample={data.sampleSections.includes("people")} />}
       </Section>
     </AppShell>
   );

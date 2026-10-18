@@ -52,6 +52,7 @@ export function buildMockData(username: string): DashboardData {
       publicacoesGrowthPct: 12.5,
       profileScore: 82,
       profileScoreLabel: "Bom",
+      growthLabel: "vs. 30 dias anteriores",
     },
     growth: [
       { date: "01/08", value: 10400 },
@@ -89,6 +90,7 @@ export function buildMockData(username: string): DashboardData {
       { name: "Fernanda Lima", role: "Proprietária — BioLabs", score: 84 },
       { name: "Carlos Almeida", role: "Gestor — LabExpert", score: 78 },
     ],
+    sampleSections: ["market", "people", "opportunities"],
     opportunities: [
       { name: "LabTech", type: "Empresa", score: 91, note: "Alto potencial de parceria" },
       { name: "Juliana Martins", type: "Pessoa", score: 88, note: "Decisora no mercado-alvo" },
