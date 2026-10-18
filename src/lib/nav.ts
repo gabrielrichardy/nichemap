@@ -4,7 +4,6 @@ export const MAIN_SECTIONS = [
   { href: "/scanner", label: "Profile Scanner" },
   { href: "/conteudo", label: "Conteúdo" },
   { href: "/mercado", label: "Market Radar" },
-  { href: "/pessoas", label: "Pessoas" },
   { href: "/empresas", label: "Empresas" },
   { href: "/oportunidades", label: "Oportunidades" },
 ] as const;

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Target, Building2, User } from "lucide-react";
+import { AtSign, Building2, Target, User } from "lucide-react";
 import { Opportunity } from "@/lib/types";
 import { SampleBadge } from "./SampleBadge";
 
@@ -30,16 +30,18 @@ export function Opportunities({
           </Link>
         )}
       </div>
-      <p className="text-xs text-slate-400 mt-1">Empresas e pessoas com maior potencial para o seu negócio.</p>
+      <p className="text-xs text-slate-400 mt-1">Perfis do nicho com melhor engajamento: candidatos a parcerias e collabs.</p>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
         {items.map((o) => (
           <div key={o.name} className="rounded-xl border border-slate-100 p-3">
             <div className="flex items-center justify-between">
               <span className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
                 {o.type === "Empresa" ? (
-                  <Building2 className="w-4 h-4 text-slate-500" />
+                  <Building2 className="w-4 h-4 text-slate-500" aria-hidden="true" />
+                ) : o.type === "Pessoa" ? (
+                  <User className="w-4 h-4 text-slate-500" aria-hidden="true" />
                 ) : (
-                  <User className="w-4 h-4 text-slate-500" />
+                  <AtSign className="w-4 h-4 text-slate-500" aria-hidden="true" />
                 )}
               </span>
               <span className="text-xs font-semibold text-slate-700">{o.score}</span>

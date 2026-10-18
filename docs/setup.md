@@ -73,11 +73,11 @@ Reexecução: rodar de novo `skills add` sobrescreve as mesmas cópias; `.mcp.js
 
 1. Codex: confiar no projeto para carregar `.codex/config.toml`; Ponytail/Caveman no Codex exigem instalação global do plugin.
 2. Graphify: rodar `graphify extract . --code-only --no-cluster` a partir de uma pasta com caminho curto (limite de 260 caracteres do Windows).
-3. Produção (2026-10-18): token do Instagram na Vercel expirou em 31/08/2026 (código 190) — gerar token de System User e atualizar `INSTAGRAM_ACCESS_TOKEN`.
-4. Criar banco Neon pela Vercel, aplicar `drizzle/0000_profile_snapshots.sql` (`npm run db:migrate`) e criar `CRON_SECRET`.
-5. Definir `INSTAGRAM_COMPETITORS` (concorrentes do Market Radar).
-6. Pessoas (#4) e Oportunidades (#5): escolher fonte/critério; hoje aparecem com o selo “Exemplo”.
-7. Projeto da Vercel ainda se chama `niche-intelligence`; renomear pode mudar o domínio verificado na Meta.
+3. Token do Instagram: **resolvido** em 2026-10-18 (System User, validade “Nunca”); `/configuracoes` em produção mostrou “token válido” e o painel passou a `source: live` para @gabriel__richardy.
+4. Banco: **resolvido** em 2026-10-18 — Neon `neon-coral-xylophone` ligado ao projeto; as variáveis são sensíveis (não baixáveis), então a migration 0000 foi aplicada pelo editor SQL da Vercel, comando a comando, com o registro de controle do Drizzle (validado antes num Postgres descartável e depois por consulta somente leitura). Falta `CRON_SECRET` para ligar a coleta diária.
+5. Definir `INSTAGRAM_COMPETITORS` (concorrentes do Market Radar e de Oportunidades). Perfil padrão já definido: `INSTAGRAM_TARGET_USERNAME=gabriel__richardy`.
+6. Pessoas (#4): seção oculta até escolher fonte. Oportunidades (#5) passam a vir dos concorrentes quando `INSTAGRAM_COMPETITORS` existir.
+7. Vercel (2026-10-18): projeto renomeado para `nichemap`; domínio `nichemap-app.vercel.app` adicionado (`nichemap.vercel.app` pertence a outra conta). O antigo `niche-intelligence-six.vercel.app` continua ativo; se a verificação de domínio da Meta for configurada, use o domínio definitivo.
 
 Evidência da coleta diária (2026-10-18, local): Postgres 17 descartável na porta 5499, `snapshots.db.test.ts` passou (migration + upsert + histórico); `/api/cron/snapshot` respondeu 401 sem/errado e, com o segredo, chamou a Graph API real e registrou o erro 190 do token falso. Coleta bem-sucedida com token válido: não testada.
 

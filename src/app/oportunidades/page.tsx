@@ -12,7 +12,7 @@ export default async function OportunidadesPage({ searchParams }: { searchParams
     <AppShell target={result.target}>
       <Section
         title="Oportunidades"
-        description="Empresas e pessoas com maior potencial para o seu negócio. Scoring real pendente (issue #5)."
+        description="Concorrentes ranqueados pelo engajamento real (score = engajamento × 10, máx. 100). Sem concorrentes configurados, mostra dados de exemplo."
         result={result}
       >
         {(data) => (

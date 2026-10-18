@@ -23,7 +23,7 @@ src/
   app/
     layout.tsx               raiz HTML (lang pt-BR), metadados e meta tag de verificação da Meta (META_VERIFICATION_CODE)
     page.tsx                 Dashboard: lê ?target e monta AppShell + DashboardClient (busca /api/instagram no cliente)
-    scanner, conteudo, mercado, pessoas, empresas, oportunidades, relatorios/
+    scanner, conteudo, mercado, empresas, oportunidades, relatorios/
                              páginas de seção (Server Components): loadDashboard() + Section
     configuracoes/page.tsx   estado das integrações via getIntegrationStatus()
     globals.css              tokens CSS e Tailwind
@@ -39,6 +39,7 @@ src/
   lib/
     instagram.ts             monta DashboardData (perfil, conteúdo, temas, concorrentes, histórico); resolveTarget(); collectDailySnapshots()
     graph.ts                 chamadas à Graph API, mensagens de erro pt-BR (token 190, permissão, limite), engajamento
+    themes.ts                temas automáticos: termos/hashtags presentes em mais legendas, sem lista fixa (puro, testado)
     growth.ts                cálculo de crescimento a partir dos snapshots (puro, testado)
     snapshots.ts             grava/lê profile_snapshots (server-only)
     cron.ts                  autorização do Vercel Cron (Bearer CRON_SECRET, comparação em tempo constante)
@@ -73,7 +74,7 @@ O token nunca chega ao cliente. `src/app` e `src/components` não podem importar
 Limitações conhecidas do fluxo atual:
 
 - `business_discovery` não entrega histórico nem visualizações: o crescimento vem só dos snapshots diários (sem banco ou com menos de 2 dias, o gráfico fica vazio com aviso) e `views` fica indefinido com dados reais.
-- Pessoas e Oportunidades seguem com dados de exemplo mesmo com token; `sampleSections` marca esses blocos e a UI mostra o selo “Exemplo”.
+- Sem `INSTAGRAM_COMPETITORS`, Mercado e Oportunidades usam dados de exemplo mesmo com token; `sampleSections` marca esses blocos e a UI mostra o selo “Exemplo”. Com concorrentes, ambos são reais (Oportunidades = `buildOpportunities`, score = engajamento × 10). Pessoas foi removida até haver fonte (#4).
 - Cada visita a uma página consulta a Graph API (perfil + até 10 concorrentes), sem cache. Revisar se o limite de chamadas da Meta aparecer.
 - O token vai como `access_token` na query string da Graph API (formato documentado pela Meta); não é registrado em log.
 
@@ -96,6 +97,8 @@ Limitações conhecidas do fluxo atual:
 | Remover a curva de crescimento estimada | Era inventada (fatores fixos) e aparecia como dado real; substituída por snapshots reais ou estado vazio | AGENTS.md (não simular integrações) | — |
 | Coleta diária via Vercel Cron + upsert por dia | Plano Hobby permite cron diário; upsert torna reexecução segura | Docs Vercel Cron via Context7, 2026-10-18 | Se precisar de mais de uma coleta por dia |
 | Concorrentes via `business_discovery` (INSTAGRAM_COMPETITORS) | Mesma API e token já usados; sem serviço pago | Graph API v25 | Se precisar de mais de 10 perfis ou de dados que a API não dá |
+| Temas por frequência nas legendas (sem IA) | Lê o nicho do próprio conteúdo, grátis e explicável; junta variações com/sem acento | Pedido do usuário, 2026-10-18 | Se quiser leitura semântica: classificar com LLM (custo de API, chave nova) |
+| Ocultar Pessoas | Não há fonte de dados de pessoas sem serviço externo | Decisão do usuário, 2026-10-18 | Quando houver fonte (#4) |
 | Manter npm | Lockfile npm existente; toolkit manda preservar o gerenciador | idem | Troca deliberada de gerenciador |
 | Next 16.3.3 → 16.4.2 (minor) | Canal estável mais recente, mesma major; `eslint-config-next` e `@next/env` alinhados | npm registry, 2026-10-17 | Próxima major |
 | Manter ESLint 9 e TypeScript 5 | ESLint 10 e TS 7 são majors novas; fora do escopo do bootstrap | npm registry, 2026-10-17 | Tarefa própria de atualização |

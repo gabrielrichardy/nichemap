@@ -6,7 +6,7 @@ Antigo nome do protótipo e do repositório: **Niche Intelligence** (`niche-inte
 
 Quem cuida das redes sociais de uma empresa (ou da própria marca pessoal) precisa entender como o perfil no Instagram está indo, que conteúdo funciona, como o nicho se movimenta e onde há oportunidades. Hoje isso é feito olhando o app do Instagram e planilhas soltas, sem uma visão consolidada.
 
-O Nichemap reúne essas informações num painel único, pensado para ser consultado principalmente no celular: perfil, indicadores, conteúdos em destaque, temas, mercado, pessoas relevantes e oportunidades.
+O Nichemap reúne essas informações num painel único, pensado para ser consultado principalmente no celular: perfil, indicadores, conteúdos em destaque, temas, mercado e oportunidades.
 
 ## Público e papéis
 
@@ -17,7 +17,7 @@ O Nichemap reúne essas informações num painel único, pensado para ser consul
 
 1. **Ver o painel de um perfil.** Entrada: perfil buscado no topo da página (`?target=`, aceita `@perfil`) ou o padrão `INSTAGRAM_TARGET_USERNAME`. Ação: abrir `/`. Resultado: cabeçalho do perfil, KPIs (seguidores, engajamento médio, publicações, profile score), gráfico de crescimento, tipos de conteúdo e temas.
 2. **Identificar o conteúdo que performa.** Resultado: lista dos 5 conteúdos com mais curtidas, com tipo, data, curtidas, comentários, multiplicador sobre a média e link para o post.
-3. **Navegar pelas seções** (menu lateral no desktop, menu horizontal no celular), mantendo o perfil buscado: Profile Scanner, Conteúdo (até 25 publicações recentes), Market Radar, Pessoas, Empresas, Oportunidades, Relatórios (impressão/PDF) e Configurações (estado das integrações, sem mostrar valores).
+3. **Navegar pelas seções** (menu lateral no desktop, menu horizontal no celular), mantendo o perfil buscado: Profile Scanner, Conteúdo (até 25 publicações recentes), Market Radar, Empresas, Oportunidades, Relatórios (impressão/PDF) e Configurações (estado das integrações, sem mostrar valores).
 4. **Saber se o dado é real.** O painel mostra um aviso indicando se os dados vêm da API do Instagram ou são de exemplo.
 
 ## MVP
@@ -27,7 +27,8 @@ Em ordem de prioridade:
 1. Painel do perfil com dados reais da Instagram Graph API (business discovery) e fallback para dados de exemplo. **Implementado.**
 2. Leitura confortável no celular (mobile-first). **Implementado:** 375 px sem rolagem horizontal e menu de seções no celular.
 3. Histórico real de crescimento a partir de snapshots diários guardados no PostgreSQL. **Implementado no código** (coleta diária + tabela); em produção falta criar o banco e o `CRON_SECRET`.
-4. Mercado com fonte real: **implementado** via concorrentes configurados (`INSTAGRAM_COMPETITORS`). Pessoas relevantes e oportunidades: **pendentes** (#4, #5), dependem de escolher fontes/critérios; aparecem com o selo “Exemplo”.
+4. Mercado e Oportunidades com fonte real: **implementados** via concorrentes (`INSTAGRAM_COMPETITORS`); Oportunidades = concorrentes ranqueados por engajamento (score = engajamento × 10, máx. 100). Pessoas relevantes: **oculta** até haver fonte (#4).
+5. Temas descobertos automaticamente nas legendas e hashtags do perfil (termos presentes em mais publicações), sem lista fixa de nicho. Leitura por IA (LLM) seria uma evolução com custo de API; não implementada.
 
 ## Fora de escopo (por enquanto)
 
@@ -55,7 +56,8 @@ Em ordem de prioridade:
 
 | Item | Tipo | Impacto | Próximo passo |
 |---|---|---|---|
-| Fontes de dados para Mercado, Pessoas e Oportunidades | Decisão externa pendente | Essas seções continuam com dados de exemplo | Escolher fontes (perfis concorrentes, enriquecimento) e custos |
+| Fonte de dados para Pessoas | Decisão externa pendente | Seção oculta | Escolher fonte de enriquecimento de pessoas e custos (#4) |
+| Concorrentes do Market Radar | Pendente com o usuário | Mercado e Oportunidades com dados de exemplo | Definir `INSTAGRAM_COMPETITORS` |
 | Renovação do token (long-lived / System User) | Decisão externa pendente | Dados reais param quando o token expira | Definir app Meta e fluxo de renovação |
 | Banco PostgreSQL de desenvolvimento/produção | Decisão externa pendente | Sem ele não há snapshots | Escolher provedor e criar `.env.local` com `DATABASE_URL` |
 | Um único perfil analisado por instalação | Hipótese reversível | Sem multi-conta | Revisar quando houver login/equipes |

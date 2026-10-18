@@ -32,6 +32,7 @@ Testes atuais (Node, sem rede nem banco):
 - `src/lib/logger.test.ts`: redação de segredos nos logs.
 - `src/db/index.test.ts`: ciclo de vida do pool com `pg` mockado (não conecta).
 - `src/app/api/instagram/route.test.ts`: `@perfil` vira `perfil`; alvo inválido responde 400 com mensagem pt-BR sem chamar a API.
+- `src/lib/themes.test.ts`: temas tirados do próprio conteúdo, acento/hashtag unificados, links/menções/palavras vazias ignorados.
 - `src/lib/growth.test.ts`: crescimento só com 2+ dias, percentuais, dia no fuso de Brasília.
 - `src/lib/graph.test.ts`: mensagens de erro da Graph API (token expirado, permissão, limite) sem vazar o token; cálculo de engajamento.
 - `src/lib/cron.test.ts`: o cron só aceita `Bearer <CRON_SECRET>` exato; sem segredo, ninguém passa.
