@@ -9,7 +9,14 @@ const stateOf = (name: string) => getIntegrationStatus().integrations.find((i) =
 
 describe("getIntegrationStatus", () => {
   it("reports missing integrations when nothing is configured", () => {
-    for (const key of ["INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_BUSINESS_ID", "DATABASE_URL", "META_VERIFICATION_CODE"]) {
+    for (const key of [
+      "INSTAGRAM_ACCESS_TOKEN",
+      "INSTAGRAM_BUSINESS_ID",
+      "DATABASE_URL",
+      "META_VERIFICATION_CODE",
+      "INSTAGRAM_COMPETITORS",
+      "CRON_SECRET",
+    ]) {
       vi.stubEnv(key, "");
     }
     expect(getIntegrationStatus().integrations.every((i) => i.state === "missing")).toBe(true);
@@ -20,13 +27,17 @@ describe("getIntegrationStatus", () => {
     vi.stubEnv("INSTAGRAM_BUSINESS_ID", "not-a-number");
     vi.stubEnv("DATABASE_URL", "postgres://app:secret-db-pass@localhost:5432/app");
     vi.stubEnv("META_VERIFICATION_CODE", "secret-meta-code");
+    vi.stubEnv("CRON_SECRET", "secret-cron-value");
+    vi.stubEnv("INSTAGRAM_COMPETITORS", "labtech, a,b!");
 
     expect(stateOf("Instagram Graph API")).toBe("invalid");
     expect(stateOf("Banco PostgreSQL")).toBe("ok");
     expect(stateOf("Verificação de domínio Meta")).toBe("ok");
+    expect(stateOf("Coleta diária (Vercel Cron)")).toBe("ok");
+    expect(stateOf("Concorrentes (Market Radar)")).toBe("invalid");
 
     const serialized = JSON.stringify(getIntegrationStatus());
-    for (const secret of ["secret-token-value", "not-a-number", "secret-db-pass", "secret-meta-code"]) {
+    for (const secret of ["secret-token-value", "not-a-number", "secret-db-pass", "secret-meta-code", "secret-cron-value"]) {
       expect(serialized).not.toContain(secret);
     }
   });

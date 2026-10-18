@@ -1,6 +1,6 @@
 "use client";
 
-import { AtSign, ChevronDown } from "lucide-react";
+import { AtSign } from "lucide-react";
 
 export function ProfileHeader({
   name,
@@ -26,10 +26,6 @@ export function ProfileHeader({
           <p className="text-sm text-slate-500 mt-0.5">{bio}</p>
         </div>
       </div>
-      <button className="flex items-center gap-2 text-sm bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-600">
-        Últimos 30 dias
-        <ChevronDown className="w-4 h-4 text-slate-400" />
-      </button>
     </div>
   );
 }

@@ -73,11 +73,15 @@ Reexecução: rodar de novo `skills add` sobrescreve as mesmas cópias; `.mcp.js
 
 1. Codex: confiar no projeto para carregar `.codex/config.toml`; Ponytail/Caveman no Codex exigem instalação global do plugin.
 2. Graphify: rodar `graphify extract . --code-only --no-cluster` a partir de uma pasta com caminho curto (limite de 260 caracteres do Windows).
-3. Confirmar o nome "Nichemap" na interface; escolher fontes para Mercado/Pessoas/Oportunidades; definir renovação do token do Instagram.
-4. Prover PostgreSQL de desenvolvimento (`DATABASE_URL`).
-5. Itens de UI ainda em aberto em `docs/design.md` (menu mobile junto do segundo módulo, botões sem ação).
+3. Produção (2026-10-18): token do Instagram na Vercel expirou em 31/08/2026 (código 190) — gerar token de System User e atualizar `INSTAGRAM_ACCESS_TOKEN`.
+4. Criar banco Neon pela Vercel, aplicar `drizzle/0000_profile_snapshots.sql` (`npm run db:migrate`) e criar `CRON_SECRET`.
+5. Definir `INSTAGRAM_COMPETITORS` (concorrentes do Market Radar).
+6. Pessoas (#4) e Oportunidades (#5): escolher fonte/critério; hoje aparecem com o selo “Exemplo”.
+7. Projeto da Vercel ainda se chama `niche-intelligence`; renomear pode mudar o domínio verificado na Meta.
 
-**Próxima entrega do MVP:** snapshot diário do perfil no PostgreSQL (ver `PRODUCT.md`).
+Evidência da coleta diária (2026-10-18, local): Postgres 17 descartável na porta 5499, `snapshots.db.test.ts` passou (migration + upsert + histórico); `/api/cron/snapshot` respondeu 401 sem/errado e, com o segredo, chamou a Graph API real e registrou o erro 190 do token falso. Coleta bem-sucedida com token válido: não testada.
+
+**Próxima entrega do MVP:** ligar a coleta em produção (itens 3–5) e acompanhar os primeiros dias de histórico.
 
 Revisão sugerida: **4 ciclos** de code review — a mudança de setup é ampla em arquivos mas rasa em lógica; o risco real está na integração com a Graph API e na UI mobile. Focos: (1) segurança e dados da integração Instagram; (2) configuração/ambiente e quality gates; (3) acessibilidade e layout mobile; (4) revisão integrada com `npm run check`.
 

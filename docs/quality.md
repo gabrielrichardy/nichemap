@@ -32,7 +32,12 @@ Testes atuais (Node, sem rede nem banco):
 - `src/lib/logger.test.ts`: redação de segredos nos logs.
 - `src/db/index.test.ts`: ciclo de vida do pool com `pg` mockado (não conecta).
 - `src/app/api/instagram/route.test.ts`: `@perfil` vira `perfil`; alvo inválido responde 400 com mensagem pt-BR sem chamar a API.
+- `src/lib/growth.test.ts`: crescimento só com 2+ dias, percentuais, dia no fuso de Brasília.
+- `src/lib/graph.test.ts`: mensagens de erro da Graph API (token expirado, permissão, limite) sem vazar o token; cálculo de engajamento.
+- `src/lib/cron.test.ts`: o cron só aceita `Bearer <CRON_SECRET>` exato; sem segredo, ninguém passa.
+- `src/lib/snapshots.db.test.ts`: **integração com PostgreSQL real** (migration, upsert diário, histórico em ordem). Só roda com `TEST_DATABASE_URL` apontando para um banco descartável; a CI pula. Última execução: 2026-10-18, Postgres 17 local descartável, passou.
 - `src/lib/settings.test.ts`: estados das integrações (faltando / ok / inválido) e garantia de que nenhum valor de variável aparece no resultado.
+- `src/lib/instagram.test.ts` (dados reais com `fetch` mockado): sem banco o gráfico fica vazio (nada estimado), concorrentes reais no mercado, concorrente com erro é ignorado, selos de exemplo corretos.
 - `src/lib/instagram.test.ts`: `targetUsernameSchema` aceita usernames válidos e rejeita injeção na expressão `fields`; sem credenciais ou com `INSTAGRAM_BUSINESS_ID` inválido, devolve mock sem chamar `fetch` e sem expor o valor configurado.
 
 Não há testes de componentes, E2E nem testes contra banco ou API real. Entram junto dos fluxos que precisarem (por exemplo, snapshots diários com banco de teste descartável). Mock de `pg` não prova SQL real.

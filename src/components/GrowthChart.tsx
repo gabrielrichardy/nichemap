@@ -7,6 +7,11 @@ export function GrowthChart({ data }: { data: GrowthPoint[] }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 lg:col-span-2">
       <h3 className="font-medium text-slate-900">Crescimento de Seguidores</h3>
+      {data.length < 2 ? (
+        <p className="mt-4 text-sm text-slate-400">
+          Histórico em construção: o gráfico aparece a partir do segundo dia de coleta diária.
+        </p>
+      ) : (
       <div className="h-56 mt-4">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
@@ -32,6 +37,7 @@ export function GrowthChart({ data }: { data: GrowthPoint[] }) {
           </AreaChart>
         </ResponsiveContainer>
       </div>
+      )}
     </div>
   );
 }

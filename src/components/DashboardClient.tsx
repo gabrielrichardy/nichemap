@@ -75,17 +75,29 @@ export function DashboardClient({ target }: { target: string }) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <ThemeAnalysis themes={data.themes} />
-            <MarketTable market={data.market} moreHref={withTarget("/mercado", target)} />
+            <MarketTable
+              market={data.market}
+              moreHref={withTarget("/mercado", target)}
+              sample={data.sampleSections.includes("market")}
+            />
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4">
           <TopContent items={data.topContent} moreHref={withTarget("/conteudo", target)} />
-          <RelevantPeople people={data.people} moreHref={withTarget("/pessoas", target)} />
+          <RelevantPeople
+            people={data.people}
+            moreHref={withTarget("/pessoas", target)}
+            sample={data.sampleSections.includes("people")}
+          />
         </div>
       </div>
 
-      <Opportunities items={data.opportunities} moreHref={withTarget("/oportunidades", target)} />
+      <Opportunities
+        items={data.opportunities}
+        moreHref={withTarget("/oportunidades", target)}
+        sample={data.sampleSections.includes("opportunities")}
+      />
     </div>
   );
 }

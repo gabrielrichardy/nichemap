@@ -30,7 +30,7 @@ Corrigido em 2026-10-17:
 
 Em aberto:
 
-1. **Controles sem ação** (issue #23): seletor "Últimos 30 dias", sino de notificações e menu do usuário ("Gabriel / Social Media", fixo).
+Controles sem ação removidos (issue #23): seletor "Últimos 30 dias" (não há dados por período), sino de notificações e menu do usuário fixo. Cards ainda com dados de exemplo mostram o selo “Exemplo”; o gráfico de crescimento mostra “Histórico em construção” até haver 2 dias de coleta.
 
 Resolvido com as páginas de seção: menu horizontal no celular (abaixo de `md`, `aria-current` no item ativo); "Ver todos" dos cards viram links para as seções; card fictício "Plano Pro" removido; o card de temas deixou de dizer "(IA)", porque a análise é por palavras-chave; menu e cabeçalho somem na impressão (`print:hidden`).
 

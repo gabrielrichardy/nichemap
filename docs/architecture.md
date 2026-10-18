@@ -28,6 +28,7 @@ src/
     configuracoes/page.tsx   estado das integrações via getIntegrationStatus()
     globals.css              tokens CSS e Tailwind
     api/instagram/route.ts   GET: valida ?target e devolve DashboardData (real ou mock)
+    api/cron/snapshot/       GET diário (vercel.json): grava um snapshot por perfil acompanhado
   components/
     AppShell.tsx             Sidebar (menu desktop + menu celular) + Header + <main>
     Section.tsx              título, erro de perfil inválido e DataSourceBanner das páginas de seção
@@ -36,7 +37,11 @@ src/
     KpiCards, GrowthChart, ContentTypeDonut, ThemeAnalysis, MarketTable,
     TopContent, RelevantPeople, Opportunities, ProfileHeader, Header, Sidebar
   lib/
-    instagram.ts             Graph API (business_discovery), métricas, temas, fallback mock; resolveTarget()
+    instagram.ts             monta DashboardData (perfil, conteúdo, temas, concorrentes, histórico); resolveTarget(); collectDailySnapshots()
+    graph.ts                 chamadas à Graph API, mensagens de erro pt-BR (token 190, permissão, limite), engajamento
+    growth.ts                cálculo de crescimento a partir dos snapshots (puro, testado)
+    snapshots.ts             grava/lê profile_snapshots (server-only)
+    cron.ts                  autorização do Vercel Cron (Bearer CRON_SECRET, comparação em tempo constante)
     dashboard.ts             loadDashboard()/readTarget() para as páginas de seção (server-only)
     settings.ts              getIntegrationStatus(): só estados, nunca valores (server-only)
     nav.ts                   lista das seções e withTarget()
@@ -67,7 +72,9 @@ O token nunca chega ao cliente. `src/app` e `src/components` não podem importar
 
 Limitações conhecidas do fluxo atual:
 
-- Com dados reais, `growth` é estimado (fatores fixos sobre os seguidores atuais) e `views` repete `likes`, porque `business_discovery` não entrega histórico nem visualizações. A `note` avisa sobre o crescimento.
+- `business_discovery` não entrega histórico nem visualizações: o crescimento vem só dos snapshots diários (sem banco ou com menos de 2 dias, o gráfico fica vazio com aviso) e `views` fica indefinido com dados reais.
+- Pessoas e Oportunidades seguem com dados de exemplo mesmo com token; `sampleSections` marca esses blocos e a UI mostra o selo “Exemplo”.
+- Cada visita a uma página consulta a Graph API (perfil + até 10 concorrentes), sem cache. Revisar se o limite de chamadas da Meta aparecer.
 - O token vai como `access_token` na query string da Graph API (formato documentado pela Meta); não é registrado em log.
 
 ## Dados e migrations
@@ -75,7 +82,9 @@ Limitações conhecidas do fluxo atual:
 - Schema Drizzle em `src/db/schema/index.ts`, exportado para `getDb()`. Tipos via `$inferSelect`/`$inferInsert` quando houver tabelas.
 - `npm run db:generate` gera SQL em `drizzle/` sem conexão; revise o SQL. `npm run db:migrate` usa `DATABASE_URL_UNPOOLED` ou `DATABASE_URL` e só deve rodar contra um banco autorizado.
 - Pool: `max: 5`, timeout de conexão 5 s, ocioso 30 s; criado na primeira chamada a `getDb()`, então build e testes não precisam de banco.
-- Primeira tabela prevista (ainda não criada): snapshots diários do perfil — ver `PRODUCT.md`.
+- `profile_snapshots` (`drizzle/0000_profile_snapshots.sql`): `username`, `taken_on` (dia no fuso de Brasília), `followers`, `media_count`, `engagement_pct`; índice único (`username`, `taken_on`) usado pelo upsert diário e pelas consultas por período.
+- Coleta: Vercel Cron chama `/api/cron/snapshot` às 11:00 UTC com `Authorization: Bearer $CRON_SECRET`; grava o perfil padrão e os concorrentes. Só grava dados reais (exige token).
+- Leitura: `getDashboardData` busca os últimos 30 dias; se o banco falhar, o painel segue sem histórico e registra `warn` no log.
 
 ## Decisões
 
@@ -84,6 +93,9 @@ Limitações conhecidas do fluxo atual:
 | Adotar o protótipo `niche-intelligence` em vez de gerar novo scaffold | Já é Next App Router + TS + Tailwind + ESLint + `src/` + `@/*`; o toolkit proíbe regenerar app existente | toolkit `docs/04-project-bootstrap.md`, 2026-10-17 | — |
 | Aplicar o bootstrap sobre o `main` do GitHub (`niche-intelligence`), não sobre o zip | O GitHub tinha 10 commits a mais (busca por `?target`, Graph v25, verificação Meta, CI, layout); sobrescrever apagaria isso e o deploy da Vercel | `git diff` zip × `origin/main`, 2026-10-17 | — |
 | CI em Node 24 com testes no job `lint` | Alinha ao runtime do projeto (Vitest 5 e `engines`); mantém os nomes de checks exigidos pela proteção da `main` | `.github/workflows/ci.yml` | Se a proteção de branch mudar |
+| Remover a curva de crescimento estimada | Era inventada (fatores fixos) e aparecia como dado real; substituída por snapshots reais ou estado vazio | AGENTS.md (não simular integrações) | — |
+| Coleta diária via Vercel Cron + upsert por dia | Plano Hobby permite cron diário; upsert torna reexecução segura | Docs Vercel Cron via Context7, 2026-10-18 | Se precisar de mais de uma coleta por dia |
+| Concorrentes via `business_discovery` (INSTAGRAM_COMPETITORS) | Mesma API e token já usados; sem serviço pago | Graph API v25 | Se precisar de mais de 10 perfis ou de dados que a API não dá |
 | Manter npm | Lockfile npm existente; toolkit manda preservar o gerenciador | idem | Troca deliberada de gerenciador |
 | Next 16.3.3 → 16.4.2 (minor) | Canal estável mais recente, mesma major; `eslint-config-next` e `@next/env` alinhados | npm registry, 2026-10-17 | Próxima major |
 | Manter ESLint 9 e TypeScript 5 | ESLint 10 e TS 7 são majors novas; fora do escopo do bootstrap | npm registry, 2026-10-17 | Tarefa própria de atualização |

@@ -31,12 +31,15 @@ Copie `.env.example` para `.env.local` (ignorado pelo Git) e preencha só o que 
 | `INSTAGRAM_BUSINESS_ID` | ID numérico da sua conta comercial do Instagram (quem consulta) |
 | `INSTAGRAM_TARGET_USERNAME` | Perfil padrão analisado (padrão `biodev`); `?target=` na URL sobrepõe |
 | `META_VERIFICATION_CODE` | Código da meta tag `facebook-domain-verification`; vazio = sem tag |
+| `INSTAGRAM_COMPETITORS` | Concorrentes do Market Radar, separados por vírgula (até 10) |
+| `CRON_SECRET` | Segredo da coleta diária `/api/cron/snapshot` (16+ caracteres aleatórios) |
 
 Em produção, as mesmas variáveis ficam na Vercel (Settings > Environment Variables).
 
 ### Dados reais do Instagram
 
-1. No Graph API Explorer (https://developers.facebook.com/tools/explorer/), gere um token com `instagram_business_basic`, `pages_show_list` e `business_management`.
+1. **Token que não expira (recomendado): System User.** Em business.facebook.com → Configurações → Usuários → Usuários do sistema → Adicionar (função Admin) → Atribuir ativos (o app e a conta do Instagram/Página) → Gerar token, escolhendo o app e as permissões `instagram_business_basic`, `pages_show_list`, `business_management` e `instagram_manage_insights`, com validade “Nunca”.
+   Alternativa para testes: Graph API Explorer (https://developers.facebook.com/tools/explorer/) com as mesmas permissões; esse token expira em ~1 h (ou 60 dias se trocado por long-lived).
 2. Descubra o ID da sua conta comercial: `GET /me/accounts` → `id` da Página → `GET /{page-id}?fields=instagram_business_account`.
 3. Preencha `INSTAGRAM_ACCESS_TOKEN` e `INSTAGRAM_BUSINESS_ID` no `.env.local` e reinicie `npm run dev`.
 
@@ -61,7 +64,24 @@ Para o `business_discovery` devolver dados reais, o app precisa passar por este 
 3. Ao criar/alterar tabelas em `src/db/schema/`, rode `npm run db:generate` e revise o SQL em `drizzle/`.
 4. Aplique com `npm run db:migrate` somente no banco correto.
 
-Hoje o schema está vazio, então não há migration a aplicar.
+A tabela `profile_snapshots` (migration `drizzle/0000_profile_snapshots.sql`) guarda um registro por perfil por dia.
+
+### Banco de produção (Vercel)
+
+1. Na Vercel: **Storage > Create Database > Neon (Postgres)** e conecte ao projeto. Isso cria `DATABASE_URL` (e `DATABASE_URL_UNPOOLED`) nas variáveis do projeto.
+2. Localmente, com autorização para mexer no banco de produção: `vercel env pull .env.production.local` e depois `npm run db:migrate` (o `drizzle.config.ts` carrega esse arquivo pelo `@next/env`). Apague o `.env.production.local` ao terminar; ele é ignorado pelo Git, mas contém segredos.
+3. Crie `CRON_SECRET` nas variáveis da Vercel e faça um novo deploy. A coleta roda todo dia às 11:00 UTC; para disparar na hora: `curl -H "Authorization: Bearer $CRON_SECRET" https://<seu-domínio>/api/cron/snapshot`.
+
+### Testar contra um Postgres descartável
+
+O teste `src/lib/snapshots.db.test.ts` só roda com `TEST_DATABASE_URL` apontando para um banco **descartável** (ele aplica a migration e apaga a tabela). Exemplo com o PostgreSQL local, sem senha, numa pasta temporária:
+
+```bash
+initdb -D /tmp/nichemap-pg -U postgres -A trust
+pg_ctl -D /tmp/nichemap-pg -o "-p 5499" start
+createdb -h 127.0.0.1 -p 5499 -U postgres nichemap_test
+TEST_DATABASE_URL=postgres://postgres@127.0.0.1:5499/nichemap_test npm test
+```
 
 ## Verificar
 
@@ -76,5 +96,7 @@ Roda lint, typecheck, self-check das regras, testes e build. Nada disso precisa 
 Leia [AGENTS.md](../AGENTS.md). [CLAUDE.md](../CLAUDE.md) importa as mesmas instruções. Ao abrir o projeto no Claude Code, aprove o servidor MCP `context7` (`.mcp.json`) e os plugins Ponytail e Caveman declarados em `.claude/settings.json`. No Codex, confie no projeto para carregar `.codex/config.toml`. Detalhes em [setup.md](setup.md).
 
 ## Dificuldades conhecidas
+
+- **Painel em dados de exemplo com “Token do Instagram expirado ou inválido”**: o `INSTAGRAM_ACCESS_TOKEN` venceu (código 190 da Graph API). Gere um token de System User e atualize a variável. A página Configurações testa o token a cada visita.
 
 - **Aviso "Next.js ignored package-lock.json in C:\Users\…"**: causado por um `package-lock.json` num diretório pai. Corrigido fixando `turbopack.root` em `next.config.ts`.

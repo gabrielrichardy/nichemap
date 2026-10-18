@@ -7,6 +7,7 @@ export interface Kpis {
   publicacoesGrowthPct: number;
   profileScore: number;
   profileScoreLabel: string;
+  growthLabel?: string; // comparison window shown next to growth percentages
 }
 
 export interface GrowthPoint {
@@ -29,7 +30,7 @@ export interface ThemeItem {
 export interface MarketProfile {
   name: string;
   followers: number;
-  growthPct: number;
+  growthPct: number | null; // null until there is snapshot history
 }
 
 export interface ContentItem {
@@ -57,6 +58,9 @@ export interface Opportunity {
   note: string;
 }
 
+// Blocks that still show sample data even when the profile itself is live.
+export type SampleSection = "market" | "people" | "opportunities";
+
 export interface DashboardData {
   source: "live" | "mock";
   fetchedAt: string;
@@ -75,4 +79,5 @@ export interface DashboardData {
   content: ContentItem[]; // every fetched post, newest first
   people: Person[];
   opportunities: Opportunity[];
+  sampleSections: SampleSection[];
 }

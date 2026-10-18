@@ -10,6 +10,7 @@ function Kpi({
   label,
   value,
   growthPct,
+  growthLabel,
   suffix,
 }: {
   icon: typeof Users;
@@ -18,6 +19,7 @@ function Kpi({
   label: string;
   value: string;
   growthPct: number;
+  growthLabel?: string;
   suffix?: string;
 }) {
   return (
@@ -39,7 +41,7 @@ function Kpi({
             {growthPct > 0 ? "+" : ""}
             {growthPct}%
           </span>
-          <span className="text-slate-400">vs. 30 dias anteriores</span>
+          {growthLabel && <span className="text-slate-400">{growthLabel}</span>}
         </div>
       )}
     </div>
@@ -56,6 +58,7 @@ export function KpiCards({ kpis }: { kpis: Kpis }) {
         label="Seguidores"
         value={kpis.seguidores.toLocaleString("pt-BR")}
         growthPct={kpis.seguidoresGrowthPct}
+        growthLabel={kpis.growthLabel}
       />
       <Kpi
         icon={Heart}
@@ -64,6 +67,7 @@ export function KpiCards({ kpis }: { kpis: Kpis }) {
         label="Engajamento médio"
         value={`${kpis.engajamentoPct}%`}
         growthPct={kpis.engajamentoGrowthPct}
+        growthLabel={kpis.growthLabel}
       />
       <Kpi
         icon={FileText}
@@ -72,6 +76,7 @@ export function KpiCards({ kpis }: { kpis: Kpis }) {
         label="Publicações"
         value={String(kpis.publicacoes)}
         growthPct={kpis.publicacoesGrowthPct}
+        growthLabel={kpis.growthLabel}
       />
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
         <div className="flex items-center gap-3">
@@ -87,7 +92,6 @@ export function KpiCards({ kpis }: { kpis: Kpis }) {
             {kpis.profileScoreLabel}
           </span>
         </div>
-        <p className="mt-2 text-xs text-slate-400">vs. 30 dias anteriores</p>
       </div>
     </div>
   );

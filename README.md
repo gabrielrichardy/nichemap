@@ -30,13 +30,13 @@ npm run check
 
 O projeto está ligado à Vercel pelo GitHub: cada push na `main` gera o deploy de produção, cada PR ganha um preview. O build usa `npm run build` (Next.js detectado automaticamente).
 
-Variáveis em **Settings > Environment Variables** (todas opcionais; sem elas o deploy funciona com dados de exemplo): `INSTAGRAM_ACCESS_TOKEN`, `INSTAGRAM_BUSINESS_ID`, `INSTAGRAM_TARGET_USERNAME`, `META_VERIFICATION_CODE` e, quando houver schema, `DATABASE_URL`.
+Variáveis em **Settings > Environment Variables** (todas opcionais; sem elas o deploy funciona com dados de exemplo): `INSTAGRAM_ACCESS_TOKEN`, `INSTAGRAM_BUSINESS_ID`, `INSTAGRAM_TARGET_USERNAME`, `INSTAGRAM_COMPETITORS`, `META_VERIFICATION_CODE`, `DATABASE_URL` e `CRON_SECRET`. A coleta diária roda pelo Vercel Cron (`vercel.json`, 11:00 UTC = 08:00 em Brasília).
 
 O passo a passo para liberar o acesso real na Meta (app em Live, verificações, permissões e token) está em [docs/onboarding.md](docs/onboarding.md#confirmar-o-app-meta).
 
 ## O que é real e o que é exemplo
 
-Com o token configurado, são reais: seguidores, publicações, tipos de conteúdo, conteúdos em destaque e temas (palavras-chave nas legendas). O histórico de crescimento é **estimado** até existirem snapshots diários. Mercado, Pessoas Relevantes e Oportunidades continuam com **dados de exemplo**.
+Com o token configurado, são reais: seguidores, publicações, tipos de conteúdo, conteúdos em destaque e temas (palavras-chave nas legendas). Com `INSTAGRAM_COMPETITORS`, o Market Radar mostra concorrentes reais. Com banco (`DATABASE_URL`) e a coleta diária (`CRON_SECRET` + Vercel Cron), o crescimento é **real**, a partir do segundo dia; antes disso o gráfico diz que o histórico está em construção. Pessoas Relevantes e Oportunidades continuam com **dados de exemplo**, marcados com o selo “Exemplo”.
 
 ## Documentação
 
