@@ -6,7 +6,8 @@ import { computeEngagementPct, fetchProfile, type RawBusinessDiscovery, type Raw
 import { dayInBrazil, percentChange, summarizeGrowth, withToday, type SnapshotPoint } from "./growth";
 import { logger } from "./logger";
 import { getRecentSnapshots, saveSnapshot } from "./snapshots";
-import type { ContentItem, ContentTypeSlice, DashboardData, MarketProfile, SampleSection, ThemeItem } from "./types";
+import { extractThemes } from "./themes";
+import type { ContentItem, ContentTypeSlice, DashboardData, MarketProfile, Opportunity, SampleSection } from "./types";
 
 export { GRAPH_VERSION } from "./graph";
 
@@ -20,40 +21,6 @@ export const INVALID_TARGET_MESSAGE = "Perfil inválido: use só letras, número
 export function resolveTarget(raw?: string | null): string | null {
   const value = (raw || process.env.INSTAGRAM_TARGET_USERNAME || "biodev").trim().replace(/^@/, "").toLowerCase();
   return targetUsernameSchema.safeParse(value).success ? value : null;
-}
-
-const THEME_KEYWORDS: { label: string; color: string; keywords: string[] }[] = [
-  { label: "Gestão laboratorial", color: "#3B82F6", keywords: ["gestão", "laboratório", "processo", "rotina", "equipe"] },
-  { label: "Tecnologia e inovação", color: "#8B5CF6", keywords: ["tecnologia", "inovação", "sistema", "automação", "ia", "software"] },
-  { label: "Qualidade e certificação", color: "#22C55E", keywords: ["qualidade", "certificação", "norma", "iso", "acreditação", "auditoria"] },
-  { label: "Saúde e bem-estar", color: "#F59E0B", keywords: ["saúde", "paciente", "bem-estar", "diagnóstico", "exame"] },
-  { label: "Carreira e mercado", color: "#0EA5E9", keywords: ["carreira", "mercado", "vaga", "profissional", "concurso"] },
-];
-
-function classifyThemes(captions: string[]): ThemeItem[] {
-  const counts = new Map<string, number>();
-  THEME_KEYWORDS.forEach((t) => counts.set(t.label, 0));
-
-  captions.forEach((raw) => {
-    const text = raw.toLowerCase();
-    for (const theme of THEME_KEYWORDS) {
-      if (theme.keywords.some((k) => text.includes(k))) {
-        counts.set(theme.label, (counts.get(theme.label) ?? 0) + 1);
-      }
-    }
-  });
-
-  const total = captions.length || 1;
-  const items: ThemeItem[] = THEME_KEYWORDS.map((t) => ({
-    label: t.label,
-    color: t.color,
-    percent: Math.round(((counts.get(t.label) ?? 0) / total) * 100),
-  })).filter((t) => t.percent > 0);
-
-  const otherPct = Math.max(0, 100 - items.reduce((s, i) => s + i.percent, 0));
-  if (otherPct > 0) items.push({ label: "Outros", percent: otherPct, color: "#94A3B8" });
-
-  return items.sort((a, b) => b.percent - a.percent);
 }
 
 function mapContentType(mediaType: RawMedia["media_type"]): ContentItem["type"] {
@@ -125,6 +92,37 @@ function buildMarket(
     .sort((a, b) => b.followers - a.followers);
 }
 
+// Profiles in the niche ranked by real engagement: candidates for partnerships and collabs.
+// Score = engagement % x 10, capped at 100 (10% engagement or more scores 100).
+export function buildOpportunities(
+  competitors: string[],
+  results: PromiseSettledResult<RawBusinessDiscovery>[],
+  history: Map<string, SnapshotPoint[]>,
+): Opportunity[] {
+  return results
+    .flatMap((r, i) => {
+      if (r.status === "rejected") return [];
+      const profile = r.value;
+      const engagement = computeEngagementPct(profile.media?.data ?? [], profile.followers_count);
+      const oldest = history.get(competitors[i])?.[0];
+      const growth = oldest ? percentChange(profile.followers_count, oldest.followers) : null;
+      const parts = [
+        `Engajamento ${engagement.toLocaleString("pt-BR")}%`,
+        `${profile.followers_count.toLocaleString("pt-BR")} seguidores`,
+        ...(growth !== null ? [`${growth > 0 ? "+" : ""}${growth.toLocaleString("pt-BR")}% no período`] : []),
+      ];
+      return [
+        {
+          name: profile.name || `@${profile.username}`,
+          type: "Perfil" as const,
+          score: Math.min(100, Math.round(engagement * 10)),
+          note: parts.join(" · "),
+        },
+      ];
+    })
+    .sort((a, b) => b.score - a.score);
+}
+
 function buildNote(days: number | null, sampleSections: SampleSection[]): string {
   const history =
     days !== null
@@ -145,7 +143,7 @@ export async function getDashboardData(targetUsername: string): Promise<Dashboar
     const [data, history, competitorResults] = await Promise.all([
       fetchProfile(targetUsername, credentials),
       loadHistory([targetUsername, ...competitors]),
-      Promise.allSettled(competitors.map((c) => fetchProfile(c, credentials, false))),
+      Promise.allSettled(competitors.map((c) => fetchProfile(c, credentials))),
     ]);
     const media = data.media?.data ?? [];
     const engajamentoPct = computeEngagementPct(media, data.followers_count);
@@ -189,9 +187,7 @@ export async function getDashboardData(targetUsername: string): Promise<Dashboar
     const summary = summarizeGrowth(withToday(history.get(targetUsername) ?? [], today));
 
     const mock = buildMockData(targetUsername);
-    const sampleSections: SampleSection[] = competitors.length
-      ? ["people", "opportunities"]
-      : ["market", "people", "opportunities"];
+    const sampleSections: SampleSection[] = competitors.length ? [] : ["market", "opportunities"];
 
     return {
       source: "live",
@@ -215,12 +211,11 @@ export async function getDashboardData(targetUsername: string): Promise<Dashboar
       },
       growth: summary?.growth ?? [],
       contentTypes: buildContentTypeBreakdown(media),
-      themes: classifyThemes(media.map((m) => m.caption ?? "")),
+      themes: extractThemes(media.map((m) => m.caption ?? "")),
       market: competitors.length ? buildMarket(competitors, competitorResults, history) : mock.market,
       topContent,
       content,
-      people: mock.people,
-      opportunities: mock.opportunities,
+      opportunities: competitors.length ? buildOpportunities(competitors, competitorResults, history) : mock.opportunities,
       sampleSections,
     };
   } catch (err) {

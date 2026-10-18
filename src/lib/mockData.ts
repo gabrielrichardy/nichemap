@@ -84,13 +84,7 @@ export function buildMockData(username: string): DashboardData {
     ],
     topContent: SAMPLE_CONTENT,
     content: SAMPLE_CONTENT,
-    people: [
-      { name: "Juliana Martins", role: "CEO — LabTech", score: 92 },
-      { name: "Rafael Costa", role: "Diretor de Operações — DiagnoPlus", score: 88 },
-      { name: "Fernanda Lima", role: "Proprietária — BioLabs", score: 84 },
-      { name: "Carlos Almeida", role: "Gestor — LabExpert", score: 78 },
-    ],
-    sampleSections: ["market", "people", "opportunities"],
+    sampleSections: ["market", "opportunities"],
     opportunities: [
       { name: "LabTech", type: "Empresa", score: 91, note: "Alto potencial de parceria" },
       { name: "Juliana Martins", type: "Pessoa", score: 88, note: "Decisora no mercado-alvo" },

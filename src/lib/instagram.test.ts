@@ -87,7 +87,7 @@ describe("getDashboardData with live data", () => {
     expect(data.kpis.engajamentoPct).toBe(10);
     expect(data.content.map((c) => c.id)).toEqual(["2", "1"]);
     expect(data.content.every((c) => c.views === undefined)).toBe(true);
-    expect(data.sampleSections).toEqual(["market", "people", "opportunities"]);
+    expect(data.sampleSections).toEqual(["market", "opportunities"]);
   });
 
   it("uses real competitors for the market and skips the ones that fail", async () => {
@@ -99,6 +99,10 @@ describe("getDashboardData with live data", () => {
 
     const data = await getDashboardData("biodev");
     expect(data.market).toEqual([{ name: "LABTECH", followers: 5000, growthPct: null }]);
-    expect(data.sampleSections).toEqual(["people", "opportunities"]);
+    // (90 + 10 + 100) / 2 posts / 5000 followers = 2% engagement -> score 20
+    expect(data.opportunities).toEqual([
+      { name: "LABTECH", type: "Perfil", score: 20, note: "Engajamento 2% · 5.000 seguidores" },
+    ]);
+    expect(data.sampleSections).toEqual([]);
   });
 });

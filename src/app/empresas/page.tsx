@@ -13,15 +13,15 @@ export default async function EmpresasPage({ searchParams }: { searchParams: Pag
     <AppShell target={result.target}>
       <Section
         title="Empresas"
-        description="Empresas concorrentes (INSTAGRAM_COMPETITORS) e oportunidades com empresas. Scoring real de oportunidades pendente (issue #5)."
+        description="Perfis concorrentes (INSTAGRAM_COMPETITORS) com seguidores, crescimento e engajamento reais."
         result={result}
       >
         {(data) => (
           <div className="grid grid-cols-1 gap-4">
             <MarketTable market={data.market} sample={data.sampleSections.includes("market")} />
             <Opportunities
-              title="Oportunidades com empresas"
-              items={data.opportunities.filter((o) => o.type === "Empresa")}
+              title="Oportunidades no mercado"
+              items={data.opportunities.filter((o) => o.type !== "Pessoa")}
               sample={data.sampleSections.includes("opportunities")}
             />
           </div>

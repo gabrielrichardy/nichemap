@@ -45,21 +45,15 @@ export interface ContentItem {
   permalink?: string;
 }
 
-export interface Person {
-  name: string;
-  role: string;
-  score: number;
-}
-
 export interface Opportunity {
   name: string;
-  type: "Empresa" | "Pessoa";
+  type: "Empresa" | "Pessoa" | "Perfil";
   score: number;
   note: string;
 }
 
 // Blocks that still show sample data even when the profile itself is live.
-export type SampleSection = "market" | "people" | "opportunities";
+export type SampleSection = "market" | "opportunities";
 
 export interface DashboardData {
   source: "live" | "mock";
@@ -77,7 +71,6 @@ export interface DashboardData {
   market: MarketProfile[];
   topContent: ContentItem[];
   content: ContentItem[]; // every fetched post, newest first
-  people: Person[];
   opportunities: Opportunity[];
   sampleSections: SampleSection[];
 }

@@ -26,4 +26,5 @@ it("removes structured secrets while keeping useful context", async () => {
   expect(output).not.toContain("test-token");
   expect(output).not.toContain("session=test");
   expect(JSON.parse(output)).toMatchObject({ requestId: "request-1", user: { id: "user-1" } });
-});
+  // The dynamic import loads pino inside the test; a cold load on Windows can exceed the 5s default.
+}, 20_000);

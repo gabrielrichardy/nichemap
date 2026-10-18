@@ -9,7 +9,6 @@ import { ContentTypeDonut } from "./ContentTypeDonut";
 import { ThemeAnalysis } from "./ThemeAnalysis";
 import { MarketTable } from "./MarketTable";
 import { TopContent } from "./TopContent";
-import { RelevantPeople } from "./RelevantPeople";
 import { Opportunities } from "./Opportunities";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { withTarget } from "@/lib/nav";
@@ -85,11 +84,6 @@ export function DashboardClient({ target }: { target: string }) {
 
         <div className="grid grid-cols-1 gap-4">
           <TopContent items={data.topContent} moreHref={withTarget("/conteudo", target)} />
-          <RelevantPeople
-            people={data.people}
-            moreHref={withTarget("/pessoas", target)}
-            sample={data.sampleSections.includes("people")}
-          />
         </div>
       </div>
 

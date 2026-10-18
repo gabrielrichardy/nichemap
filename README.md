@@ -5,6 +5,8 @@
 
 Painel web mobile-first para social media de empresas e pessoas acompanharem um perfil do Instagram: indicadores, conteúdos em destaque, temas, mercado e oportunidades. Escopo em [PRODUCT.md](PRODUCT.md).
 
+No ar: **https://nichemap-app.vercel.app** (o endereço antigo `niche-intelligence-six.vercel.app` continua funcionando).
+
 > **Status:** MVP funcional. Sem configuração roda com **dados de exemplo**; com um token da Instagram Graph API mostra dados reais do perfil analisado.
 
 ## Executar
@@ -36,7 +38,7 @@ O passo a passo para liberar o acesso real na Meta (app em Live, verificações,
 
 ## O que é real e o que é exemplo
 
-Com o token configurado, são reais: seguidores, publicações, tipos de conteúdo, conteúdos em destaque e temas (palavras-chave nas legendas). Com `INSTAGRAM_COMPETITORS`, o Market Radar mostra concorrentes reais. Com banco (`DATABASE_URL`) e a coleta diária (`CRON_SECRET` + Vercel Cron), o crescimento é **real**, a partir do segundo dia; antes disso o gráfico diz que o histórico está em construção. Pessoas Relevantes e Oportunidades continuam com **dados de exemplo**, marcados com o selo “Exemplo”.
+Com o token configurado, são reais: seguidores, publicações, tipos de conteúdo, conteúdos em destaque e temas (descobertos automaticamente a partir das legendas e hashtags, sem lista fixa). Com `INSTAGRAM_COMPETITORS`, o Market Radar mostra concorrentes reais. Com banco (`DATABASE_URL`) e a coleta diária (`CRON_SECRET` + Vercel Cron), o crescimento é **real**, a partir do segundo dia; antes disso o gráfico diz que o histórico está em construção. Com concorrentes configurados, Oportunidades ranqueia esses perfis pelo engajamento real; sem eles, mostra **dados de exemplo** com o selo “Exemplo”. A seção Pessoas fica oculta até existir uma fonte de dados (#4).
 
 ## Documentação
 
@@ -62,7 +64,7 @@ Backlog nas [Issues do GitHub](https://github.com/gabrielrichardy/nichemap/issue
 | 1 | [Conectar dados reais do Instagram (token long-lived)](https://github.com/gabrielrichardy/nichemap/issues/1) | `src/lib/instagram.ts` |
 | 2 | [Ativar módulo "Conteúdo" na sidebar](https://github.com/gabrielrichardy/nichemap/issues/2) | `src/components/Sidebar.tsx` |
 | 3 | [Market Radar com dados reais](https://github.com/gabrielrichardy/nichemap/issues/3) | `mockData.market` |
-| 4 | [Pessoas Relevantes + enriquecimento](https://github.com/gabrielrichardy/nichemap/issues/4) | `mockData.people` |
+| 4 | [Pessoas Relevantes + enriquecimento](https://github.com/gabrielrichardy/nichemap/issues/4) | seção oculta até haver fonte |
 | 5 | [Oportunidades com scoring real](https://github.com/gabrielrichardy/nichemap/issues/5) | `mockData.opportunities` |
 | 6 | [Busca funcional no Header](https://github.com/gabrielrichardy/nichemap/issues/6) | `src/components/Header.tsx` (busca por perfil já entregue) |
 | 7 | [Adicionar testes automatizados (Vitest)](https://github.com/gabrielrichardy/nichemap/issues/7) | Vitest + CI |
