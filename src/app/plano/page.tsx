@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Lock } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { PlanCards } from "@/components/PlanCards";
 import { PLAN_LABELS, requiredPlan } from "@/lib/access";
 import { getSupportLink } from "@/lib/env";
 import { MAIN_SECTIONS, SECONDARY_SECTIONS } from "@/lib/nav";
@@ -19,29 +20,30 @@ export default async function PlanoPage({ searchParams }: { searchParams: Promis
 
   return (
     <AppShell target={viewer.instagramUsername ?? ""} viewer={viewer}>
-      <div className="max-w-xl bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-3">
-        <div className="flex items-center gap-2">
-          <Lock className="w-5 h-5 text-slate-400" aria-hidden="true" />
-          <h1 className="text-lg font-semibold text-slate-900">
+      <div className="space-y-4 pb-10 max-w-5xl">
+        <h1 className="text-xl font-semibold text-slate-900">Planos</h1>
+        {secao && (
+          <p className="flex items-center gap-2 text-sm text-slate-700">
+            <Lock className="w-4 h-4 shrink-0 text-slate-400" aria-hidden="true" />
             {section && required && required !== "admin"
-              ? `${section.label} está no plano ${PLAN_LABELS[required]}`
-              : "Este recurso não está no seu plano"}
-          </h1>
-        </div>
+              ? `${section.label} está no plano ${PLAN_LABELS[required]}.`
+              : "Este recurso não está no seu plano."}
+          </p>
+        )}
         <p className="text-sm text-slate-600">
-          Seu plano atual: <strong>{PLAN_LABELS[viewer.plan]}</strong>.
+          {viewer.complimentary ? (
+            <strong>Plano {PLAN_LABELS[viewer.plan]} — cortesia</strong>
+          ) : (
+            <>
+              Seu plano atual: <strong>{PLAN_LABELS[viewer.plan]}</strong>.
+            </>
+          )}
         </p>
-        {whatsapp ? (
-          <a
-            href={whatsapp}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block rounded-xl bg-blue-600 text-white text-sm font-medium px-4 py-2.5 hover:bg-blue-700"
-          >
-            Quero mudar de plano
+        <PlanCards currentPlan={viewer.plan} canSubscribe={!viewer.isAdmin && !viewer.complimentary} />
+        {whatsapp && (
+          <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="inline-block text-sm text-blue-600 underline">
+            Dúvidas sobre os planos? Fale com o suporte no WhatsApp
           </a>
-        ) : (
-          <p className="text-sm text-slate-500">Fale com o responsável pelo Nichemap para mudar de plano.</p>
         )}
       </div>
     </AppShell>

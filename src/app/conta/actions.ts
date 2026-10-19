@@ -1,11 +1,34 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { deleteAccount } from "@/lib/accounts";
 import { getAuth } from "@/lib/auth";
+import { cancelSubscription, changePlan } from "@/lib/billing";
 import { logger } from "@/lib/logger";
-import { getViewer } from "@/lib/viewer";
+import { getViewer, requireViewer } from "@/lib/viewer";
+
+export type BillingActionState = { error?: string };
+
+const planSchema = z.enum(["intermediario", "completo"]);
+
+// Both act on the session user only; the form carries nothing but the plan.
+export async function changeMyPlan(formData: FormData): Promise<BillingActionState> {
+  const viewer = await requireViewer("/conta");
+  const plan = planSchema.parse(formData.get("plan"));
+  const { ok } = await changePlan(viewer.userId, plan);
+  revalidatePath("/conta");
+  return ok ? {} : { error: "Não foi possível mudar o plano. Tente de novo em alguns minutos." };
+}
+
+export async function cancelMySubscription(): Promise<BillingActionState> {
+  const viewer = await requireViewer("/conta");
+  const { ok } = await cancelSubscription(viewer.userId);
+  revalidatePath("/conta");
+  return ok ? {} : { error: "Não foi possível cancelar a assinatura. Tente de novo em alguns minutos." };
+}
 
 // LGPD: the customer deletes their own data; sessions go with the account (cascade).
 export async function deleteMyAccount(): Promise<void> {

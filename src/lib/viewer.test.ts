@@ -16,7 +16,15 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("./auth", () => ({ getAuth: vi.fn() }));
 
-type SessionUser = { id: string; name: string; email: string; image?: string | null; plan?: string; instagramUsername?: string | null };
+type SessionUser = {
+  id: string;
+  name: string;
+  email: string;
+  image?: string | null;
+  plan?: string;
+  instagramUsername?: string | null;
+  complimentary?: boolean;
+};
 
 function signIn(user: SessionUser | null) {
   vi.mocked(getAuth).mockReturnValue(
@@ -46,6 +54,7 @@ const viewer = (overrides: Partial<Viewer>): Viewer => ({
   plan: "basico",
   instagramUsername: "meuperfil",
   termsAcceptedAt: null,
+  complimentary: false,
   ...overrides,
 });
 
@@ -89,6 +98,13 @@ describe("requireViewer", () => {
   it("treats ADMIN_EMAILS accounts as admins on any plan", async () => {
     signIn({ ...customer("basico", null), email: "Admin@Example.com" });
     await expect(requireViewer("/mercado")).resolves.toMatchObject({ isAdmin: true });
+  });
+
+  it("reads the complimentary flag, defaulting to false", async () => {
+    signIn(customer("completo"));
+    await expect(requireViewer("/conta")).resolves.toMatchObject({ complimentary: false });
+    signIn({ ...customer("completo"), complimentary: true });
+    await expect(requireViewer("/conta")).resolves.toMatchObject({ complimentary: true });
   });
 
   it("allows /conta for any signed-in customer with a profile", async () => {

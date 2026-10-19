@@ -1,5 +1,6 @@
 import "server-only";
 import { eq } from "drizzle-orm";
+import { cache } from "react";
 import { getDb } from "@/db";
 import { subscription, user, type Subscription } from "@/db/schema";
 import { PLAN_LABELS } from "./access";
@@ -21,6 +22,7 @@ import {
   type BillingStatus,
 } from "./billing-rules";
 import { normalizeCpfCnpj } from "./cpf-cnpj";
+import { isDatabaseConfigured } from "./env";
 import { dayInBrazil } from "./growth";
 import { logger } from "./logger";
 
@@ -307,4 +309,20 @@ export async function getBillingSummary(userId: string, now = new Date()): Promi
     const { status, plan, cycle, periodEnd, overdueSince, scheduledPlan } = state;
     return { status, plan, cycle, periodEnd, overdueSince, scheduledPlan, invoiceUrl: row.invoiceUrl };
   });
+}
+
+// One lookup per request, shared by the banner and the page.
+const summaryForRequest = cache((userId: string) => getBillingSummary(userId));
+
+// For pages: null for admins, without billing set up, or when the lookup fails (logged),
+// so a billing problem never breaks the page around it.
+export async function getViewerBilling(viewer: { userId: string; isAdmin: boolean }): Promise<BillingSummary | null> {
+  if (viewer.isAdmin || !isDatabaseConfigured()) return null;
+  try {
+    if (!getAsaasConfig()) return null;
+    return await summaryForRequest(viewer.userId);
+  } catch (error) {
+    logger.error({ userId: viewer.userId, error: (error as Error).message }, "Billing summary failed");
+    return null;
+  }
 }
