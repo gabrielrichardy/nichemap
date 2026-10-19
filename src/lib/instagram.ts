@@ -6,6 +6,7 @@ import { instagramUsernameSchema } from "./env-schema";
 import { computeEngagementPct, fetchProfile, type RawBusinessDiscovery, type RawMedia } from "./graph";
 import { dayInBrazil, percentChange, summarizeGrowth, withToday, type SnapshotPoint } from "./growth";
 import { logger } from "./logger";
+import { fetchProfileWithFallback, SourceDisabledError, type ProfileSource } from "./profile-source";
 import { computeProfileScore } from "./profileScore";
 import { getRecentSnapshots, saveSnapshot } from "./snapshots";
 import { extractThemes } from "./themes";
@@ -125,7 +126,7 @@ export function buildOpportunities(
     .sort((a, b) => b.score - a.score);
 }
 
-function buildNote(days: number | null, sampleSections: SampleSection[]): string {
+function buildNote(source: ProfileSource, days: number | null, sampleSections: SampleSection[]): string {
   const history =
     days !== null
       ? `Crescimento real dos últimos ${days} ${days === 1 ? "dia" : "dias"}.`
@@ -133,34 +134,46 @@ function buildNote(days: number | null, sampleSections: SampleSection[]): string
         ? "Histórico de crescimento em coleta: o gráfico aparece a partir do segundo dia."
         : "Sem banco configurado, ainda não há histórico de crescimento.";
   const samples = sampleSections.length ? " Blocos marcados como “Exemplo” ainda não têm fonte real." : "";
-  return `Perfil, publicações, conteúdos e temas vêm da API do Instagram. ${history}${samples}`;
+  const origin =
+    source === "unofficial"
+      ? "Perfil e últimos posts vêm de uma fonte não oficial (Apify)."
+      : "Perfil, publicações, conteúdos e temas vêm da API do Instagram.";
+  return `${origin} ${history}${samples}`;
 }
+
+// Why real data is missing: the official source refused a non-business @ with the fallback off, or anything else.
+export type DashboardFailure = { failure: "unavailable" | "not_business" };
 
 export interface DashboardOptions {
   // false: no competitor calls at all (plans without Market Radar).
   includeCompetitors?: boolean;
   // false: no full post list (plans without the Conteúdo section).
   includeContent?: boolean;
-  // false: return null instead of sample data when real data is unavailable (customers).
+  // false: return a DashboardFailure instead of sample data when real data is unavailable (customers).
   mockOnFailure?: boolean;
+  // true: the main profile may fall back to the unofficial source (never competitors).
+  allowUnofficial?: boolean;
 }
 
 export function getDashboardData(
   targetUsername: string,
   options?: DashboardOptions & { mockOnFailure?: true },
 ): Promise<DashboardData>;
-export function getDashboardData(targetUsername: string, options: DashboardOptions): Promise<DashboardData | null>;
+export function getDashboardData(
+  targetUsername: string,
+  options: DashboardOptions,
+): Promise<DashboardData | DashboardFailure>;
 export async function getDashboardData(
   targetUsername: string,
-  { includeCompetitors = true, includeContent = true, mockOnFailure = true }: DashboardOptions = {},
-): Promise<DashboardData | null> {
+  { includeCompetitors = true, includeContent = true, mockOnFailure = true, allowUnofficial = false }: DashboardOptions = {},
+): Promise<DashboardData | DashboardFailure> {
   try {
     const credentials = getInstagramCredentials();
-    if (!credentials) return mockOnFailure ? buildMockData(targetUsername) : null;
+    if (!credentials) return mockOnFailure ? buildMockData(targetUsername) : { failure: "unavailable" };
 
     const competitors = includeCompetitors ? competitorsOrNone() : [];
-    const [data, history, competitorResults] = await Promise.all([
-      fetchProfile(targetUsername, credentials),
+    const [{ profile: data, source }, history, competitorResults] = await Promise.all([
+      fetchProfileWithFallback(targetUsername, credentials, { allowUnofficial }),
       loadHistory([targetUsername, ...competitors]),
       Promise.allSettled(competitors.map((c) => fetchProfile(c, credentials))),
     ]);
@@ -210,9 +223,9 @@ export async function getDashboardData(
     const opportunitiesFallback = includeCompetitors ? mock.opportunities : [];
 
     return {
-      source: "live",
+      source,
       fetchedAt: new Date().toISOString(),
-      note: buildNote(summary?.days ?? null, sampleSections),
+      note: buildNote(source, summary?.days ?? null, sampleSections),
       profile: {
         username: data.username,
         name: data.name ?? data.username,
@@ -244,7 +257,7 @@ export async function getDashboardData(
   } catch (err) {
     const message = (err as Error).message;
     logger.warn({ target: targetUsername, error: message }, "Instagram data unavailable");
-    if (!mockOnFailure) return null;
+    if (!mockOnFailure) return { failure: err instanceof SourceDisabledError ? "not_business" : "unavailable" };
     const mock = buildMockData(targetUsername);
     mock.note = `Não foi possível buscar dados reais agora (${message}). Mostrando dados de exemplo.`;
     return mock;

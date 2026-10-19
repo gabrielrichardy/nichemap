@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { listLockedUsernames } from "./accounts";
+import { getApifyProfile } from "./apify";
 import { collectDailySnapshots, getDashboardData, targetUsernameSchema } from "./instagram";
 import { saveSnapshot } from "./snapshots";
 
 vi.mock("server-only", () => ({}));
 vi.mock("./logger", () => ({ logger: { warn: vi.fn() } }));
 vi.mock("./accounts", () => ({ listLockedUsernames: vi.fn(async () => []) }));
+vi.mock("./apify", () => ({ getApifyProfile: vi.fn() }));
 vi.mock("./snapshots", () => ({ getRecentSnapshots: vi.fn(async () => new Map()), saveSnapshot: vi.fn(async () => {}) }));
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -37,10 +39,10 @@ describe("getDashboardData", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("returns null instead of mock data when asked not to fall back", async () => {
+  it("reports unavailable instead of mock data when asked not to fall back", async () => {
     vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "");
     vi.stubEnv("INSTAGRAM_BUSINESS_ID", "");
-    expect(await getDashboardData("biodev", { mockOnFailure: false })).toBeNull();
+    expect(await getDashboardData("biodev", { mockOnFailure: false })).toEqual({ failure: "unavailable" });
   });
 
   it("falls back to mock data without exposing the configured value for an invalid business ID", async () => {
@@ -79,6 +81,7 @@ describe("getDashboardData with live data", () => {
       vi.fn(async (url: string) => {
         const name = /business_discovery\.username\(([^)]+)\)/.exec(decodeURIComponent(url))?.[1] ?? "";
         if (name === "broken") return Response.json({ error: { code: 100, message: "not found" } }, { status: 400 });
+        if (name === "down") return Response.json({ error: { code: 2, message: "service down" } }, { status: 500 });
         return Response.json(profile(name, name === "biodev" ? 1000 : 5000));
       }),
     );
@@ -142,12 +145,45 @@ describe("getDashboardData with live data", () => {
     expect(data.topContent).toHaveLength(2);
   });
 
-  it("returns null when the API fails and mock data is not allowed", async () => {
+  it("reports unavailable when the API fails and mock data is not allowed", async () => {
     vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "test-token");
     vi.stubEnv("INSTAGRAM_BUSINESS_ID", "123");
     vi.stubEnv("INSTAGRAM_COMPETITORS", "");
     stubGraph();
-    expect(await getDashboardData("broken", { mockOnFailure: false })).toBeNull();
+    expect(await getDashboardData("down", { mockOnFailure: false })).toEqual({ failure: "unavailable" });
+  });
+
+  it("labels data from the unofficial source when the official one refuses a non-business @", async () => {
+    vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "test-token");
+    vi.stubEnv("INSTAGRAM_BUSINESS_ID", "123");
+    vi.stubEnv("INSTAGRAM_COMPETITORS", "labtech");
+    vi.stubEnv("DATABASE_URL", "");
+    vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", "true");
+    vi.stubEnv("APIFY_TOKEN", "apify-token");
+    stubGraph();
+    vi.mocked(getApifyProfile).mockResolvedValueOnce(profile("broken", 800).business_discovery as never);
+
+    const data = await getDashboardData("broken", { allowUnofficial: true, mockOnFailure: false });
+    if ("failure" in data) throw new Error(`expected data, got ${data.failure}`);
+    expect(data.source).toBe("unofficial");
+    expect(data.note).toMatch(/^Perfil e últimos posts vêm de uma fonte não oficial \(Apify\)\. /);
+    expect(data.kpis.seguidores).toBe(800);
+    // Competitors stay on the official source only.
+    expect(data.market).toEqual([{ name: "LABTECH", followers: 5000, growthPct: null }]);
+    expect(getApifyProfile).toHaveBeenCalledTimes(1);
+    expect(getApifyProfile).toHaveBeenCalledWith("broken");
+  });
+
+  it("reports not_business when the unofficial source is not allowed for the account", async () => {
+    vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "test-token");
+    vi.stubEnv("INSTAGRAM_BUSINESS_ID", "123");
+    vi.stubEnv("INSTAGRAM_COMPETITORS", "");
+    vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", "true");
+    vi.stubEnv("APIFY_TOKEN", "apify-token");
+    stubGraph();
+    const result = await getDashboardData("broken", { allowUnofficial: false, mockOnFailure: false });
+    expect(result).toEqual({ failure: "not_business" });
+    expect(getApifyProfile).not.toHaveBeenCalled();
   });
 
   it("collects daily snapshots for customers' locked profiles too", async () => {
