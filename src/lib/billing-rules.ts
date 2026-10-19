@@ -68,6 +68,11 @@ function onPaid(state: BillingState, dueDate: Date): BillingOutcome {
   const periodEnd = later(state.periodEnd, addCycle(dueDate, state.cycle));
   // A late charge paid after cancelling must not reopen a subscription Asaas no longer bills.
   if (state.status === "canceled") return unchanged({ ...state, periodEnd, overdueSince: null });
+  // A late payment of a charge older than the overdue one (e.g. card RECEIVED ~30 days after
+  // CONFIRMED) adds its paid time but does not settle the overdue charge.
+  if ((state.status === "overdue" || state.status === "suspended") && state.overdueSince && dueDate < state.overdueSince) {
+    return unchanged({ ...state, periodEnd });
+  }
   return unchanged({
     ...state,
     status: "active",

@@ -93,6 +93,15 @@ describe("paid", () => {
     expect(out.state).toMatchObject({ status: "active", periodEnd: d("2027-01-15T00:00:00Z"), overdueSince: null });
   });
 
+  it("a late payment of a charge older than the overdue one only extends periodEnd", () => {
+    for (const status of ["overdue", "suspended"] as const) {
+      const before = state({ status, periodEnd: d("2026-11-01T00:00:00Z"), overdueSince: d("2026-11-01T00:00:00Z") });
+      const out = applyBillingEvent(before, { type: "paid", dueDate: d("2026-10-25T00:00:00Z") }, now);
+      expect(out.state).toEqual({ ...before, periodEnd: d("2026-11-25T00:00:00Z") });
+      expect(out.cancelRemote).toBe(false);
+    }
+  });
+
   it("renews an active subscription from the later of periodEnd and dueDate + cycle", () => {
     const out = applyBillingEvent(
       state({ status: "active", periodEnd: d("2026-12-01T00:00:00Z") }),

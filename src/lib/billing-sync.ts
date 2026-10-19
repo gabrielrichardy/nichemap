@@ -3,7 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import { billingEvent, subscription } from "@/db/schema";
-import { deleteSubscription, getAsaasConfig, getPayment } from "./asaas";
+import { AsaasError, deleteSubscription, getAsaasConfig, getPayment, getSubscription } from "./asaas";
 import { lockSubscription, saveOutcome, toBillingState, type Tx } from "./billing";
 import { applyBillingEvent, type BillingEvent, type BillingState, type BillingStatus } from "./billing-rules";
 import { logger } from "./logger";
@@ -36,7 +36,14 @@ const PAYMENT_RULES: Record<string, "paid" | "overdue" | "refunded" | "chargebac
   PAYMENT_CHARGEBACK_REQUESTED: "chargeback",
 };
 const SUBSCRIPTION_REMOVED = new Set(["SUBSCRIPTION_DELETED", "SUBSCRIPTION_INACTIVATED"]);
-const PAID_STATUSES = new Set(["CONFIRMED", "RECEIVED", "RECEIVED_IN_CASH"]);
+// The rule applies only while the re-read payment still has one of these statuses
+// (docs.asaas.com, payment object "status").
+const CONFIRMING_STATUSES: Record<"paid" | "overdue" | "refunded" | "chargeback", Set<string>> = {
+  paid: new Set(["CONFIRMED", "RECEIVED", "RECEIVED_IN_CASH"]),
+  overdue: new Set(["OVERDUE"]),
+  refunded: new Set(["REFUNDED", "REFUND_REQUESTED", "REFUND_IN_PROGRESS"]),
+  chargeback: new Set(["CHARGEBACK_REQUESTED", "CHARGEBACK_DISPUTE", "AWAITING_CHARGEBACK_REVERSAL"]),
+};
 
 // Asaas dates are calendar days in Brazil (UTC-3, no daylight saving since 2019): midnight there.
 function brazilDay(day: string): Date {
@@ -60,26 +67,42 @@ interface Resolved {
   invoiceUrl?: string;
 }
 
-// Turns the event into a rule from the re-read Asaas payment. Null: nothing to apply.
+// Asaas no longer has it (404): nothing to apply, and a retry would never succeed.
+async function unlessGone<T>(read: Promise<T>): Promise<T | null> {
+  try {
+    return await read;
+  } catch (error) {
+    if (error instanceof AsaasError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+// Turns the event into a rule from the re-read Asaas payment or subscription; the payload
+// itself is never trusted. Null: nothing to apply.
 async function resolve(event: AsaasEvent): Promise<Resolved | null> {
   if (SUBSCRIPTION_REMOVED.has(event.event)) {
-    return event.subscription?.id ? { asaasSubscriptionId: event.subscription.id, rule: { type: "remote_deleted" } } : null;
+    if (!event.subscription?.id) return null;
+    const remote = await unlessGone(getSubscription(event.subscription.id));
+    if (!remote || (!remote.deleted && remote.status === "ACTIVE")) return null;
+    return { asaasSubscriptionId: remote.id, rule: { type: "remote_deleted" } };
   }
   const kind = PAYMENT_RULES[event.event];
   if (!kind || !event.payment?.id) return null;
-  const payment = await getPayment(event.payment.id);
-  if (!payment.subscription) return null;
+  const payment = await unlessGone(getPayment(event.payment.id));
+  if (!payment?.subscription || !CONFIRMING_STATUSES[kind].has(payment.status)) return null;
   const base = { asaasSubscriptionId: payment.subscription };
-  switch (kind) {
-    case "paid":
-      if (!PAID_STATUSES.has(payment.status)) return null;
-      return { ...base, rule: { type: "paid", dueDate: brazilDay(payment.dueDate) }, invoiceUrl: payment.invoiceUrl };
-    case "overdue":
-      if (payment.status !== "OVERDUE") return null;
-      return { ...base, rule: { type: "overdue", dueDate: brazilDay(payment.dueDate) }, invoiceUrl: payment.invoiceUrl };
-    default:
-      return { ...base, rule: { type: kind } };
+  if (kind === "paid" || kind === "overdue") {
+    return { ...base, rule: { type: kind, dueDate: brazilDay(payment.dueDate) }, invoiceUrl: payment.invoiceUrl };
   }
+  return { ...base, rule: { type: kind } };
+}
+
+// The open charge the account page links to: an overdue charge, or the payment that
+// brought the account back to active. A late payment of an older charge keeps the link.
+function newInvoiceUrl(resolved: Resolved, before: BillingState, after: BillingState): string | undefined {
+  if (resolved.rule.type === "overdue") return resolved.invoiceUrl;
+  if (resolved.rule.type === "paid" && before.status !== "active" && after.status === "active") return resolved.invoiceUrl;
+  return undefined;
 }
 
 // Applies a resolved event to the account it belongs to. False when no row matches.
@@ -99,8 +122,9 @@ async function apply(tx: Tx, resolved: Resolved, now: Date): Promise<boolean> {
   // Only real changes are saved: saveOutcome rewrites user.plan, which the owner may set by
   // hand once a subscription has ended.
   if (stateChanged(state, outcome.state)) await saveOutcome(tx, row.userId, outcome);
-  if (resolved.invoiceUrl) {
-    await tx.update(subscription).set({ invoiceUrl: resolved.invoiceUrl }).where(eq(subscription.userId, row.userId));
+  const invoiceUrl = newInvoiceUrl(resolved, state, outcome.state);
+  if (invoiceUrl) {
+    await tx.update(subscription).set({ invoiceUrl }).where(eq(subscription.userId, row.userId));
   }
   return true;
 }

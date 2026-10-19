@@ -11,6 +11,7 @@ vi.mock("@/lib/asaas", async (importOriginal) => ({
   AsaasError: (await importOriginal<typeof import("@/lib/asaas")>()).AsaasError,
   getAsaasConfig: vi.fn(),
   getPayment: vi.fn(),
+  getSubscription: vi.fn(),
   deleteSubscription: vi.fn(),
 }));
 
@@ -85,8 +86,11 @@ describe.skipIf(!url)("billing sync (PostgreSQL)", () => {
   beforeEach(async () => {
     await (await db()).execute(sql`truncate table "user", billing_event cascade`);
     const mock = await asaas();
-    for (const fn of [mock.getAsaasConfig, mock.getPayment, mock.deleteSubscription]) fn.mockReset();
+    for (const fn of [mock.getAsaasConfig, mock.getPayment, mock.getSubscription, mock.deleteSubscription]) {
+      fn.mockReset();
+    }
     mock.deleteSubscription.mockResolvedValue();
+    mock.getSubscription.mockImplementation(async (id) => ({ id, status: "INACTIVE", deleted: true }));
   });
 
   afterAll(async () => {
@@ -223,8 +227,74 @@ describe.skipIf(!url)("billing sync (PostgreSQL)", () => {
 
     expect(await handleAsaasEvent(deleted("evt_2", "sub_b"), NOW)).toBe("processed");
     expect((await readUser("b")).plan).toBe("intermediario");
+    expect(mock.getSubscription).toHaveBeenCalledWith("sub_a");
     expect(mock.getPayment).not.toHaveBeenCalled();
     expect(mock.deleteSubscription).not.toHaveBeenCalled();
+  });
+
+  it("a subscription event whose re-read subscription is still active is ignored", async () => {
+    const { handleAsaasEvent } = await import("./billing-sync");
+    const mock = await asaas();
+    mock.getSubscription.mockResolvedValue({ id: "sub_a", status: "ACTIVE", deleted: false });
+    await createUser("a", { plan: "completo" });
+    await insertSubscription("a", {});
+
+    const event = { id: "evt_1", event: "SUBSCRIPTION_INACTIVATED", subscription: { id: "sub_a" } };
+    expect(await handleAsaasEvent(event, NOW)).toBe("ignored");
+    expect(await readSubscription("a")).toMatchObject({ status: "active" });
+    expect((await readEvent("evt_1")).processedAt).toEqual(NOW);
+  });
+
+  it("refund and chargeback events whose re-read payment no longer shows them are ignored", async () => {
+    const { handleAsaasEvent } = await import("./billing-sync");
+    const mock = await asaas();
+    mock.getPayment.mockResolvedValue(payment("RECEIVED"));
+    await createUser("a", { plan: "completo" });
+    await insertSubscription("a", {});
+
+    expect(await handleAsaasEvent(paymentEvent("PAYMENT_REFUNDED", "evt_1"), NOW)).toBe("ignored");
+    expect(await handleAsaasEvent(paymentEvent("PAYMENT_CHARGEBACK_REQUESTED", "evt_2"), NOW)).toBe("ignored");
+    expect(await readSubscription("a")).toMatchObject({ status: "active" });
+    expect((await readUser("a")).plan).toBe("completo");
+    expect(mock.deleteSubscription).not.toHaveBeenCalled();
+  });
+
+  it("a late payment of an older charge leaves an unpaid account as it is", async () => {
+    const { handleAsaasEvent } = await import("./billing-sync");
+    const mock = await asaas();
+    const overdueSince = new Date("2026-10-05T03:00:00Z");
+    mock.getPayment.mockResolvedValue({ ...payment("RECEIVED"), dueDate: "2026-09-05" });
+    await createUser("a");
+    await insertSubscription("a", { status: "suspended", overdueSince, invoiceUrl: "https://pay.example/p2" });
+
+    expect(await handleAsaasEvent(paymentEvent("PAYMENT_RECEIVED"), NOW)).toBe("processed");
+    expect(await readSubscription("a")).toMatchObject({
+      status: "suspended",
+      overdueSince,
+      periodEnd: PERIOD_END,
+      invoiceUrl: "https://pay.example/p2",
+    });
+    expect((await readUser("a")).plan).toBe("basico");
+  });
+
+  it("a payment or subscription Asaas no longer has (404) is ignored and marked processed", async () => {
+    const { handleAsaasEvent } = await import("./billing-sync");
+    const { AsaasError } = await import("@/lib/asaas");
+    const mock = await asaas();
+    mock.getPayment.mockRejectedValue(new AsaasError("Asaas GET /payments/pay_1 failed with status 404", 404));
+    mock.getSubscription.mockRejectedValue(new AsaasError("Asaas GET /subscriptions/sub_a failed with status 404", 404));
+    await createUser("a", { plan: "completo" });
+    await insertSubscription("a", {});
+
+    expect(await handleAsaasEvent(paymentEvent("PAYMENT_RECEIVED", "evt_1"), NOW)).toBe("ignored");
+    const deleted = { id: "evt_2", event: "SUBSCRIPTION_DELETED", subscription: { id: "sub_a" } };
+    expect(await handleAsaasEvent(deleted, NOW)).toBe("ignored");
+    expect((await readEvent("evt_1")).processedAt).toEqual(NOW);
+    expect((await readEvent("evt_2")).processedAt).toEqual(NOW);
+    expect(await readSubscription("a")).toMatchObject({ status: "active" });
+
+    mock.getPayment.mockRejectedValue(new AsaasError("Asaas GET /payments/pay_1 failed with status 500", 500));
+    await expect(handleAsaasEvent(paymentEvent("PAYMENT_RECEIVED", "evt_3"), NOW)).rejects.toThrow("500");
   });
 
   it("tick suspends after 3 days and ends after 30 with deleteSubscription", async () => {

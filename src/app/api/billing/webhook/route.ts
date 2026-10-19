@@ -31,8 +31,9 @@ export async function POST(req: NextRequest) {
     const outcome = await handleAsaasEvent(event);
     logger.info({ eventId: event.id, type: event.event, outcome }, "Asaas event");
     return NextResponse.json({ received: true });
-  } catch {
-    logger.error({ eventId: event.id, type: event.event, outcome: "failed" }, "Asaas event failed");
+  } catch (err) {
+    // AsaasError messages carry only method, path and status, never the response body.
+    logger.error({ eventId: event.id, type: event.event, error: (err as Error).message }, "Asaas event failed");
     return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 }

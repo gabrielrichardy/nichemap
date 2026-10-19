@@ -6,6 +6,7 @@ import {
   firstPaymentUrl,
   getAsaasConfig,
   getPayment,
+  getSubscription,
 } from "./asaas";
 
 vi.mock("server-only", () => ({}));
@@ -155,6 +156,13 @@ describe("Asaas client", () => {
     await expect(promise).rejects.toMatchObject({ name: "TimeoutError" });
     expect(timeout).toHaveBeenCalledWith(10_000);
     expect(fetchMock.mock.calls[0][1]?.signal).toBe(controller.signal);
+  });
+
+  it("getSubscription reads status and deleted", async () => {
+    const fetchMock = stubFetch(Response.json({ id: "sub_1", status: "INACTIVE", deleted: true, value: 59.9 }));
+    await expect(getSubscription("sub_1")).resolves.toEqual({ id: "sub_1", status: "INACTIVE", deleted: true });
+    expect(fetchMock.mock.calls[0][0]).toBe("https://api-sandbox.asaas.com/v3/subscriptions/sub_1");
+    expect(fetchMock.mock.calls[0][1]?.method).toBe("GET");
   });
 
   it("throws when Asaas is not configured", async () => {

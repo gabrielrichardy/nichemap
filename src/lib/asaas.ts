@@ -115,3 +115,12 @@ export async function getPayment(paymentId: string): Promise<{
     invoiceUrl: payment.invoiceUrl,
   };
 }
+
+// status: ACTIVE | INACTIVE | EXPIRED. A removed subscription reads deleted: true.
+export async function getSubscription(subscriptionId: string): Promise<{ id: string; status: string; deleted: boolean }> {
+  const subscription = await request<{ id: string; status: string; deleted?: boolean }>(
+    "GET",
+    `/subscriptions/${id(subscriptionId)}`,
+  );
+  return { id: subscription.id, status: subscription.status, deleted: subscription.deleted === true };
+}

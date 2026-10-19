@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { handleAsaasEvent } from "@/lib/billing-sync";
+import { logger } from "@/lib/logger";
 import { POST } from "./route";
 
 vi.mock("server-only", () => ({}));
@@ -50,6 +51,10 @@ describe("POST /api/billing/webhook", () => {
   it("500 when processing throws", async () => {
     vi.mocked(handleAsaasEvent).mockRejectedValue(new Error("db down"));
     expect((await call(JSON.stringify(EVENT))).status).toBe(500);
+    expect(logger.error).toHaveBeenCalledWith(
+      { eventId: "evt_1", type: "PAYMENT_RECEIVED", error: "db down" },
+      "Asaas event failed",
+    );
   });
 
   it("200 on success and on duplicate", async () => {
