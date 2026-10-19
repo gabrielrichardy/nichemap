@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { redirect } from "next/navigation";
 import { startCheckout } from "@/lib/billing";
+import { logger } from "@/lib/logger";
 import { requireViewer } from "@/lib/viewer";
 import { subscribe } from "./actions";
 
@@ -11,6 +12,7 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 vi.mock("@/lib/billing", () => ({ startCheckout: vi.fn() }));
+vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
 vi.mock("@/lib/viewer", () => ({ requireViewer: vi.fn() }));
 
 const form = (fields: Record<string, string>) => {
@@ -61,6 +63,14 @@ describe("subscribe", () => {
       error: "Celular inválido. Use DDD e número, como (11) 98765-4321.",
     });
     expect(startCheckout).not.toHaveBeenCalled();
+  });
+
+  it("returns the inline provider error when startCheckout throws", async () => {
+    vi.mocked(startCheckout).mockRejectedValue(new Error("Asaas 500"));
+    await expect(subscribe({}, checkout())).resolves.toEqual({
+      error: "Não foi possível falar com o sistema de pagamento. Tente de novo em alguns minutos.",
+    });
+    expect(logger.error).toHaveBeenCalledWith({ userId: "u1", action: "subscribe", error: "Asaas 500" }, "Checkout failed");
   });
 
   it("checks the session before anything else", async () => {

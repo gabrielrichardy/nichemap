@@ -15,17 +15,35 @@ export type BillingActionState = { error?: string };
 const planSchema = z.enum(["intermediario", "completo"]);
 
 // Both act on the session user only; the form carries nothing but the plan.
+const THROWN_ERROR = "Não foi possível alterar a assinatura. Tente de novo em alguns minutos.";
+
+function logThrown(userId: string, action: string, error: unknown) {
+  logger.error({ userId, action, error: (error as Error).message }, "Billing action failed");
+}
+
 export async function changeMyPlan(formData: FormData): Promise<BillingActionState> {
   const viewer = await requireViewer("/conta");
   const plan = planSchema.parse(formData.get("plan"));
-  const { ok } = await changePlan(viewer.userId, plan);
+  let ok: boolean;
+  try {
+    ({ ok } = await changePlan(viewer.userId, plan));
+  } catch (error) {
+    logThrown(viewer.userId, "changeMyPlan", error);
+    return { error: THROWN_ERROR };
+  }
   revalidatePath("/conta");
   return ok ? {} : { error: "Não foi possível mudar o plano. Tente de novo em alguns minutos." };
 }
 
 export async function cancelMySubscription(): Promise<BillingActionState> {
   const viewer = await requireViewer("/conta");
-  const { ok } = await cancelSubscription(viewer.userId);
+  let ok: boolean;
+  try {
+    ({ ok } = await cancelSubscription(viewer.userId));
+  } catch (error) {
+    logThrown(viewer.userId, "cancelMySubscription", error);
+    return { error: THROWN_ERROR };
+  }
   revalidatePath("/conta");
   return ok ? {} : { error: "Não foi possível cancelar a assinatura. Tente de novo em alguns minutos." };
 }

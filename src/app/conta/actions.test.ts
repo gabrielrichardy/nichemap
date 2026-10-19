@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { deleteAccount } from "@/lib/accounts";
 import { getAuth } from "@/lib/auth";
 import { cancelSubscription, changePlan } from "@/lib/billing";
+import { logger } from "@/lib/logger";
 import { getViewer, requireViewer } from "@/lib/viewer";
 import { cancelMySubscription, changeMyPlan, deleteMyAccount } from "./actions";
 
@@ -13,7 +14,7 @@ vi.mock("next/navigation", () => ({
     throw new Error(`REDIRECT ${url}`);
   }),
 }));
-vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn() } }));
+vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/accounts", () => ({ deleteAccount: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ getAuth: vi.fn() }));
 vi.mock("@/lib/viewer", () => ({ getViewer: vi.fn(), requireViewer: vi.fn() }));
@@ -62,6 +63,14 @@ describe("changeMyPlan", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/conta");
   });
 
+  it("returns the inline error when changePlan throws", async () => {
+    vi.mocked(changePlan).mockRejectedValue(new Error("db down"));
+    await expect(changeMyPlan(form({ plan: "completo" }))).resolves.toEqual({
+      error: "Não foi possível alterar a assinatura. Tente de novo em alguns minutos.",
+    });
+    expect(logger.error).toHaveBeenCalledWith({ userId: "u1", action: "changeMyPlan", error: "db down" }, "Billing action failed");
+  });
+
   it("reports a failed change", async () => {
     vi.mocked(changePlan).mockResolvedValue({ ok: false });
     await expect(changeMyPlan(form({ plan: "completo" }))).resolves.toEqual({
@@ -77,6 +86,17 @@ describe("cancelMySubscription", () => {
     await expect(cancel(form({ userId: "other" }))).resolves.toEqual({});
     expect(cancelSubscription).toHaveBeenCalledWith("u1");
     expect(revalidatePath).toHaveBeenCalledWith("/conta");
+  });
+
+  it("returns the inline error when cancelSubscription throws", async () => {
+    vi.mocked(cancelSubscription).mockRejectedValue(new Error("asaas timeout"));
+    await expect(cancelMySubscription()).resolves.toEqual({
+      error: "Não foi possível alterar a assinatura. Tente de novo em alguns minutos.",
+    });
+    expect(logger.error).toHaveBeenCalledWith(
+      { userId: "u1", action: "cancelMySubscription", error: "asaas timeout" },
+      "Billing action failed",
+    );
   });
 
   it("reports a failed cancellation", async () => {

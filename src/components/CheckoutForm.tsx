@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { subscribe, type SubscribeState } from "@/app/plano/actions";
 import { PLAN_LABELS } from "@/lib/access";
 import { PRICES, formatBRL, type Cycle, type PaidPlan } from "@/lib/billing-plans";
@@ -8,6 +8,8 @@ import { PRICES, formatBRL, type Cycle, type PaidPlan } from "@/lib/billing-plan
 // Name and e-mail come from the Google account; the payment method is chosen on Asaas's page.
 export function CheckoutForm({ plan, cycle, onCancel }: { plan: PaidPlan; cycle: Cycle; onCancel: () => void }) {
   const [state, action, pending] = useActionState<SubscribeState, FormData>(subscribe, {});
+  // Controlled so the typed document survives the form reset React applies after an action.
+  const [cpfCnpj, setCpfCnpj] = useState("");
   const price = `${formatBRL(PRICES[plan][cycle])}${cycle === "monthly" ? " por mês" : " por ano"}`;
 
   return (
@@ -33,6 +35,8 @@ export function CheckoutForm({ plan, cycle, onCancel }: { plan: PaidPlan; cycle:
           autoFocus
           inputMode="numeric"
           autoComplete="off"
+          value={cpfCnpj}
+          onChange={(e) => setCpfCnpj(e.target.value)}
           aria-invalid={state.error ? true : undefined}
           aria-describedby={state.error ? "checkout-error" : "cpf-hint"}
           className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
