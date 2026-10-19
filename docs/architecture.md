@@ -104,6 +104,7 @@ Limitações conhecidas do fluxo atual:
 - Pool: `max: 5`, timeout de conexão 5 s, ocioso 30 s; criado na primeira chamada a `getDb()`, então build e testes não precisam de banco.
 - `profile_snapshots` (`drizzle/0000_profile_snapshots.sql`): `username`, `taken_on` (dia no fuso de Brasília), `followers`, `media_count`, `engagement_pct`; índice único (`username`, `taken_on`) usado pelo upsert diário e pelas consultas por período.
 - `user`, `session`, `account`, `verification` (`drizzle/0001_auth.sql`): tabelas do Better Auth; `user` tem `plan` (padrão `basico`), `instagram_username` (único), `terms_accepted_at`, `last_seen_at` (último login). Sessões e contas Google apagam em cascata com o usuário.
+- `subscription`, `billing_event` e `user.complimentary` (`drizzle/0002_billing.sql`): `subscription` guarda a assinatura Asaas da conta (uma por usuário, apaga em cascata) com `plan`, `cycle`, `status`, `period_end`, `overdue_since`, `scheduled_plan` e `invoice_url` (cobrança em aberto); `billing_event` registra os eventos de webhook do Asaas pelo id do evento (idempotência); `complimentary` (padrão `false`) marca conta cortesia, nunca cobrada.
 - Coleta: Vercel Cron chama `/api/cron/snapshot` às 11:00 UTC com `Authorization: Bearer $CRON_SECRET`; grava o perfil padrão, os concorrentes e os perfis travados pelos clientes. Só grava dados reais (exige token).
 - Leitura: `getDashboardData` busca os últimos 30 dias; se o banco falhar, o painel segue sem histórico e registra `warn` no log.
 

@@ -2,7 +2,7 @@ import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 // Core Better Auth tables (better-auth 1.7 Drizzle schema), property names = Better Auth field names.
 // Extra user columns are server-owned: declared with `input: false` in src/lib/auth.ts.
-const timestamps = {
+export const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
@@ -22,6 +22,8 @@ export const user = pgTable("user", {
   instagramUsername: text("instagram_username").unique(),
   termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  // Owner-granted courtesy: the plan is kept for free and never billed.
+  complimentary: boolean("complimentary").notNull().default(false),
 });
 
 export const session = pgTable(

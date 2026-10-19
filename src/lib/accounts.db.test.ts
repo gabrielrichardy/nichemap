@@ -77,12 +77,13 @@ describe.skipIf(!url)("accounts (PostgreSQL)", () => {
     // Control: the same session may change an allowed field, so the rejection below is about the fields.
     await auth.api.updateUser({ body: { name: "Novo nome" }, headers: new Headers({ cookie }) });
     await expect(
-      auth.api.updateUser({ body: { plan: "completo", instagramUsername: "x" } as never, headers: new Headers({ cookie }) }),
+      auth.api.updateUser({ body: { plan: "completo", instagramUsername: "x", complimentary: true } as never, headers: new Headers({ cookie }) }),
     ).rejects.toThrow(/not allowed/);
     const row = await readUser("a");
     expect(row.name).toBe("Novo nome");
     expect(row.plan).toBe("basico");
     expect(row.instagramUsername).toBeNull();
+    expect(row.complimentary).toBe(false);
   });
 
   it("deletes sessions with the account and frees its profile", async () => {

@@ -26,6 +26,7 @@ function createAuth(config: NonNullable<ReturnType<typeof getAuthConfig>>) {
         instagramUsername: { type: "string", required: false, input: false },
         termsAcceptedAt: { type: "date", required: false, input: false },
         lastSeenAt: { type: "date", required: false, input: false },
+        complimentary: { type: "boolean", required: false, defaultValue: false, input: false },
       },
     },
     databaseHooks: {
