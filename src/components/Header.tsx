@@ -2,9 +2,10 @@
 
 import { useState, FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import { AtSign, Search } from "lucide-react";
 
-export function Header({ target }: { target: string }) {
+// Only admins search other profiles; customers always see their locked @.
+export function Header({ target, canSearch }: { target: string; canSearch: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState(target);
@@ -15,6 +16,15 @@ export function Header({ target }: { target: string }) {
     // Stay on the current section; only the analysed profile changes.
     if (clean) router.push(`${pathname}?target=${encodeURIComponent(clean)}`);
   };
+
+  if (!canSearch) {
+    return (
+      <header className="flex items-center gap-2 h-20 px-4 md:px-8 print:hidden text-sm text-slate-600">
+        <AtSign className="w-4 h-4 text-pink-500" aria-hidden="true" />
+        <span>{target}</span>
+      </header>
+    );
+  }
 
   return (
     <header className="flex items-center gap-3 h-20 px-4 md:gap-4 md:px-8 print:hidden">

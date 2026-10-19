@@ -31,12 +31,20 @@ Testes atuais (Node, sem rede nem banco):
 - `src/lib/env.test.ts`: validação de `DATABASE_URL`/`LOG_LEVEL` sem vazar valores.
 - `src/lib/logger.test.ts`: redação de segredos nos logs.
 - `src/db/index.test.ts`: ciclo de vida do pool com `pg` mockado (não conecta).
-- `src/app/api/instagram/route.test.ts`: `@perfil` vira `perfil`; alvo inválido responde 400 com mensagem pt-BR sem chamar a API.
+- `src/app/api/instagram/route.test.ts`: sem login 401; cliente sem @ 403; cliente sempre recebe o próprio @ (sem concorrentes fora do Completo, sem lista completa de posts fora do Intermediário, 503 sem dados reais); admin com `@perfil` vira `perfil`; alvo inválido 400 sem chamar a API.
 - `src/lib/themes.test.ts`: temas tirados do próprio conteúdo, acento/hashtag unificados, links/menções/palavras vazias ignorados.
 - `src/lib/growth.test.ts`: crescimento só com 2+ dias, percentuais, dia no fuso de Brasília.
 - `src/lib/graph.test.ts`: mensagens de erro da Graph API (token expirado, permissão, limite) sem vazar o token; cálculo de engajamento.
 - `src/lib/cron.test.ts`: o cron só aceita `Bearer <CRON_SECRET>` exato; sem segredo, ninguém passa.
 - `src/lib/snapshots.db.test.ts`: **integração com PostgreSQL real** (migration, upsert diário, histórico em ordem). Só roda com `TEST_DATABASE_URL` apontando para um banco descartável; a CI pula. Última execução: 2026-10-18, Postgres 17 local descartável, passou.
+- `src/lib/access.test.ts`: tabela completa de acesso por seção e plano; admin acessa tudo.
+- `src/lib/viewer.test.ts`: redirecionamentos (`/entrar`, `/perfil`, `/plano`), 404 de admin, alvo do cliente ignora `?target`, leitura de `headers()` sem login configurado.
+- `src/lib/onboarding.test.ts`: mensagens da busca do perfil (inválido, indisponível, já em uso, conta pessoal).
+- `src/lib/auth.test.ts`: sem variáveis de login ou banco, `getAuth()` é `null` e não toca no banco.
+- `src/app/admin/actions.test.ts`: ações de admin barram não admins e planos inválidos.
+- `src/app/perfil/actions.test.ts`: busca e confirmação de perfil só para quem ainda não travou um @ (nem admin).
+- `src/app/conta/actions.test.ts`: exclusão apaga a conta antes de encerrar a sessão; se falhar, o cliente continua logado e vê o erro.
+- `src/lib/accounts.db.test.ts`: **integração com PostgreSQL real**: corrida de dois clientes pelo mesmo @, normalização, termos, `update-user` rejeitando `plan`/`instagramUsername`, exclusão em cascata, estatísticas. Mesmo padrão de `TEST_DATABASE_URL`. Última execução: 2026-10-19, Postgres 17 local descartável, passou.
 - `src/lib/settings.test.ts`: estados das integrações (faltando / ok / inválido) e garantia de que nenhum valor de variável aparece no resultado.
 - `src/lib/instagram.test.ts` (dados reais com `fetch` mockado): sem banco o gráfico fica vazio (nada estimado), concorrentes reais no mercado, concorrente com erro é ignorado, selos de exemplo corretos.
 - `src/lib/instagram.test.ts`: `targetUsernameSchema` aceita usernames válidos e rejeita injeção na expressão `fields`; sem credenciais ou com `INSTAGRAM_BUSINESS_ID` inválido, devolve mock sem chamar `fetch` e sem expor o valor configurado.

@@ -11,7 +11,17 @@ O Nichemap reúne essas informações num painel único, pensado para ser consul
 ## Público e papéis
 
 - **Social media de empresas** e **pessoas que gerenciam a própria presença** e querem acompanhar tudo pelo celular.
-- Um único papel por enquanto: quem abre o painel vê os dados do perfil configurado. Não há login, equipe ou multi-tenancy implementados.
+- **Cliente**: entra com o Google, trava um único perfil do Instagram (escolha definitiva) e vê só esse perfil, conforme o plano.
+- **Admin** (e-mails em `ADMIN_EMAILS`): vê todas as contas em `/admin`, muda planos, destrava perfis e analisa qualquer perfil.
+
+| Seção | Básico | Intermediário | Completo |
+|---|---|---|---|
+| Dashboard (perfil, KPIs, profile score, destaques, crescimento, tipos, temas) | sim | sim | sim |
+| Profile Scanner | sim | sim | sim |
+| Conteúdo, Relatórios | não | sim | sim |
+| Market Radar, Empresas, Oportunidades (e o bloco de mercado do Dashboard) | não | não | sim |
+
+Toda conta nova começa no Básico; o plano muda só pelo admin (sem cobrança automática por enquanto). Seções fora do plano aparecem com cadeado e levam a `/plano`. Spec: `docs/superpowers/specs/2026-10-18-login-contas-design.md`.
 
 ## Fluxos da versão inicial
 
@@ -32,7 +42,9 @@ Em ordem de prioridade:
 
 ## Fora de escopo (por enquanto)
 
-- Login, planos/cobrança e notificações. Controles ainda sem ação estão na issue #23.
+- Cobrança automática dos planos e notificações. Controles ainda sem ação estão na issue #23.
+- IA que encontra e lê concorrentes automaticamente (projeto separado; exige API paga a aprovar).
+- Teste de API não oficial do Instagram (projeto separado, restrito e desligável).
 - App nativo: o produto é web mobile-first (decisão do usuário, 2026-10-17). React Native/Expo não entra.
 
 ## Requisitos
@@ -60,7 +72,9 @@ Em ordem de prioridade:
 | Concorrentes do Market Radar | Pendente com o usuário | Mercado e Oportunidades com dados de exemplo | Definir `INSTAGRAM_COMPETITORS` |
 | Renovação do token (long-lived / System User) | Decisão externa pendente | Dados reais param quando o token expira | Definir app Meta e fluxo de renovação |
 | Banco PostgreSQL de desenvolvimento/produção | Decisão externa pendente | Sem ele não há snapshots | Escolher provedor e criar `.env.local` com `DATABASE_URL` |
-| Um único perfil analisado por instalação | Hipótese reversível | Sem multi-conta | Revisar quando houver login/equipes |
+| Concorrentes iguais para todos os clientes do plano Completo | Limitação conhecida | Cliente de outro nicho vê a mesma lista | Projeto da IA de concorrentes |
+| Textos de privacidade e termos | Rascunho | Precisam de revisão jurídica e dos dados do responsável | Preencher `[NOME DO RESPONSÁVEL]` e `[CPF/CNPJ]` e revisar |
+| Cliente OAuth do Google | Pendente com o dono | Sem ele ninguém entra | Seguir `docs/onboarding.md` (Login com Google) |
 
 ## Critérios de aceitação
 

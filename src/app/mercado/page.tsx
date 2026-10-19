@@ -3,13 +3,15 @@ import { AppShell } from "@/components/AppShell";
 import { MarketTable } from "@/components/MarketTable";
 import { Section } from "@/components/Section";
 import { loadDashboard, type PageSearchParams } from "@/lib/dashboard";
+import { requireViewer } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Market Radar · Nichemap" };
 
 export default async function MercadoPage({ searchParams }: { searchParams: PageSearchParams }) {
-  const result = await loadDashboard(searchParams);
+  const viewer = await requireViewer("/mercado");
+  const result = await loadDashboard(searchParams, viewer);
   return (
-    <AppShell target={result.target}>
+    <AppShell target={result.target} viewer={viewer}>
       <Section
         title="Market Radar"
         description="Concorrentes definidos em INSTAGRAM_COMPETITORS, com seguidores reais e crescimento a partir da coleta diária. Sem concorrentes configurados, mostra dados de exemplo."
