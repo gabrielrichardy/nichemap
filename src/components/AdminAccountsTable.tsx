@@ -54,7 +54,8 @@ export function AdminAccountsTable({ accounts }: { accounts: AdminAccount[] }) {
               <dd className="inline">{date(a.lastSeenAt)}</dd>
             </div>
           </dl>
-          <form action={changePlan} onSubmit={confirmPlan(a.name)} className="flex gap-2 items-center">
+          {/* Keyed by plan: React resets the form after the action, so it must remount with the saved plan. */}
+          <form key={a.plan} action={changePlan} onSubmit={confirmPlan(a.name)} className="flex gap-2 items-center">
             <input type="hidden" name="userId" value={a.id} />
             <label className="sr-only" htmlFor={`plan-${a.id}`}>
               Plano de {a.name}
