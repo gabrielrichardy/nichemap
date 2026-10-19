@@ -31,9 +31,15 @@ beforeEach(() => {
 });
 
 describe("deleteMyAccount", () => {
-  it("keeps the customer signed in and reports the failure when the deletion fails", async () => {
-    vi.mocked(deleteAccount).mockRejectedValueOnce(new Error("db down"));
-    await expect(deleteMyAccount()).rejects.toThrow("db down");
+  it("keeps the customer signed in and returns an inline error when the deletion fails", async () => {
+    vi.mocked(deleteAccount).mockRejectedValueOnce(new Error("asaas timeout"));
+    await expect(deleteMyAccount()).resolves.toEqual({
+      error: "Não foi possível excluir sua conta agora. Tente de novo em alguns minutos.",
+    });
+    expect(logger.error).toHaveBeenCalledWith(
+      { userId: "u1", action: "deleteMyAccount", error: "asaas timeout" },
+      "Billing action failed",
+    );
     expect(signOut).not.toHaveBeenCalled();
   });
 

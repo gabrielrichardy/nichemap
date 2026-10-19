@@ -16,6 +16,7 @@ const planSchema = z.enum(["intermediario", "completo"]);
 
 // Both act on the session user only; the form carries nothing but the plan.
 const THROWN_ERROR = "Não foi possível alterar a assinatura. Tente de novo em alguns minutos.";
+const DELETE_ERROR = "Não foi possível excluir sua conta agora. Tente de novo em alguns minutos.";
 
 function logThrown(userId: string, action: string, error: unknown) {
   logger.error({ userId, action, error: (error as Error).message }, "Billing action failed");
@@ -49,11 +50,16 @@ export async function cancelMySubscription(): Promise<BillingActionState> {
 }
 
 // LGPD: the customer deletes their own data; sessions go with the account (cascade).
-export async function deleteMyAccount(): Promise<void> {
+export async function deleteMyAccount(): Promise<BillingActionState> {
   const viewer = await getViewer();
   if (!viewer) redirect("/entrar");
-  // Delete first: if it fails the customer stays signed in and sees the error.
-  await deleteAccount(viewer.userId);
+  // Delete first: if it fails (Asaas or the database) the customer stays signed in and sees the error.
+  try {
+    await deleteAccount(viewer.userId);
+  } catch (error) {
+    logThrown(viewer.userId, "deleteMyAccount", error);
+    return { error: DELETE_ERROR };
+  }
   logger.info({ userId: viewer.userId }, "Account deleted by its owner");
   try {
     await getAuth()?.api.signOut({ headers: await headers() }); // clears the now-orphaned cookie

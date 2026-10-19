@@ -5,6 +5,7 @@ import { subscription, user } from "@/db/schema";
 import { isPlan, PLANS, type Plan } from "./access";
 import { isPaidPlan, PRICES, type Cycle } from "./billing-plans";
 import { isPlanLockedBy, type BillingStatus } from "./billing-rules";
+import { deleteSubscription } from "./asaas";
 import { lockSubscription } from "./billing";
 
 export type LockResult = { ok: true } | { ok: false; reason: "in_use" | "already_locked" | "terms_required" };
@@ -87,10 +88,17 @@ export async function setManualPlan(userId: string, plan: Plan, complimentary: b
   });
 }
 
+// Cancels the Asaas subscription first, then deletes the account in the same transaction. The
+// Asaas call runs while the user and subscription rows are locked (as in changePlan and
+// cancelSubscription, bounded by its timeout) so a checkout or webhook cannot create a new
+// subscription in between. If Asaas fails the transaction rolls back and the account stays.
 // Sessions and linked Google accounts go with it (ON DELETE CASCADE); the @ becomes free.
 export async function deleteAccount(userId: string): Promise<void> {
-  const db = getDb();
-  await db.delete(user).where(eq(user.id, userId));
+  await getDb().transaction(async (tx) => {
+    const row = await lockSubscription(tx, userId);
+    if (row && row.status !== "ended") await deleteSubscription(row.asaasSubscriptionId);
+    await tx.delete(user).where(eq(user.id, userId));
+  });
 }
 
 export async function listAccounts(): Promise<AccountRow[]> {

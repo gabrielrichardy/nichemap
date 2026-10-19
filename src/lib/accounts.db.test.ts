@@ -6,6 +6,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
+vi.mock("@/lib/asaas", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/asaas")>()),
+  deleteSubscription: vi.fn(),
+}));
 
 const url = process.env.TEST_DATABASE_URL;
 const SECRET = "test-secret-".padEnd(40, "x");
@@ -48,6 +52,7 @@ describe.skipIf(!url)("accounts (PostgreSQL)", () => {
   });
 
   beforeEach(async () => {
+    vi.clearAllMocks();
     await (await db()).execute(sql`truncate table "user" cascade`);
   });
 
@@ -109,6 +114,48 @@ describe.skipIf(!url)("accounts (PostgreSQL)", () => {
     await deleteAccount("a");
     expect(await isUsernameTaken("biodev")).toBe(false);
     expect(await (await db()).select().from(session).where(eq(session.userId, "a"))).toHaveLength(0);
+  });
+
+  it("deleteAccount cancels the Asaas subscription first", async () => {
+    const { deleteAccount } = await import("./accounts");
+    const asaas = await import("@/lib/asaas");
+    await createUser("a");
+    await createSubscription("a", "active");
+    // The account must still exist while Asaas is called: the cancel comes before the delete.
+    let userExistedDuringCancel = false;
+    vi.mocked(asaas.deleteSubscription).mockImplementationOnce(async (subscriptionId) => {
+      expect(subscriptionId).toBe("sub_a");
+      userExistedDuringCancel = (await readUser("a")) !== undefined;
+    });
+
+    await deleteAccount("a");
+    expect(asaas.deleteSubscription).toHaveBeenCalledWith("sub_a");
+    expect(userExistedDuringCancel).toBe(true);
+    expect(await readUser("a")).toBeUndefined();
+  });
+
+  it("deleteAccount keeps the user when Asaas fails", async () => {
+    const { deleteAccount } = await import("./accounts");
+    const asaas = await import("@/lib/asaas");
+    const { subscription } = await import("@/db/schema");
+    await createUser("a");
+    await createSubscription("a", "active");
+    vi.mocked(asaas.deleteSubscription).mockRejectedValueOnce(new asaas.AsaasError("Asaas DELETE failed", 500));
+
+    await expect(deleteAccount("a")).rejects.toThrow("Asaas DELETE failed");
+    expect(await readUser("a")).toBeDefined();
+    expect(await (await db()).select().from(subscription).where(eq(subscription.userId, "a"))).toHaveLength(1);
+  });
+
+  it("deleteAccount skips Asaas once the subscription has ended", async () => {
+    const { deleteAccount } = await import("./accounts");
+    const asaas = await import("@/lib/asaas");
+    await createUser("a");
+    await createSubscription("a", "ended");
+
+    await deleteAccount("a");
+    expect(asaas.deleteSubscription).not.toHaveBeenCalled();
+    expect(await readUser("a")).toBeUndefined();
   });
 
   it("counts accounts by plan and signup window", async () => {

@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef } from "react";
+import { useActionState, useRef } from "react";
 import { useFormStatus } from "react-dom";
-import { deleteMyAccount } from "@/app/conta/actions";
+import { deleteMyAccount, type BillingActionState } from "@/app/conta/actions";
 
 function ConfirmDelete() {
   const { pending } = useFormStatus();
@@ -15,6 +15,7 @@ function ConfirmDelete() {
 
 export function DeleteAccountButton() {
   const dialog = useRef<HTMLDialogElement>(null);
+  const [state, remove] = useActionState<BillingActionState>(() => deleteMyAccount(), {});
   return (
     <>
       <button
@@ -35,7 +36,12 @@ export function DeleteAccountButton() {
         <p className="text-sm text-slate-600 mt-2">
           Excluir sua conta apaga seus dados e libera o perfil. Não dá para desfazer.
         </p>
-        <form action={deleteMyAccount} className="flex gap-2 justify-end mt-5">
+        {state.error && (
+          <p role="alert" className="text-sm text-rose-600 mt-2">
+            {state.error}
+          </p>
+        )}
+        <form action={remove} className="flex gap-2 justify-end mt-5">
           <button type="button" onClick={() => dialog.current?.close()} className="rounded-xl px-4 py-2 text-sm text-slate-600">
             Voltar
           </button>
