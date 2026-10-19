@@ -1,0 +1,116 @@
+// Integration test against a real PostgreSQL. Runs only when TEST_DATABASE_URL points to a
+// disposable database (never production); CI skips it.
+import { eq, sql } from "drizzle-orm";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
+
+const url = process.env.TEST_DATABASE_URL;
+const SECRET = "test-secret-".padEnd(40, "x");
+
+async function db() {
+  return (await import("@/db")).getDb();
+}
+
+async function createUser(id: string, createdAt = new Date()) {
+  const { user } = await import("@/db/schema");
+  await (await db()).insert(user).values({ id, name: id, email: `${id}@example.com`, createdAt });
+}
+
+async function readUser(id: string) {
+  const { user } = await import("@/db/schema");
+  const [row] = await (await db()).select().from(user).where(eq(user.id, id));
+  return row;
+}
+
+describe.skipIf(!url)("accounts (PostgreSQL)", () => {
+  beforeAll(async () => {
+    vi.stubEnv("DATABASE_URL", url!);
+    vi.stubEnv("GOOGLE_CLIENT_ID", "test-client");
+    vi.stubEnv("GOOGLE_CLIENT_SECRET", "test-secret");
+    vi.stubEnv("BETTER_AUTH_SECRET", SECRET);
+    vi.stubEnv("BETTER_AUTH_URL", "http://localhost:3000");
+    await migrate(await db(), { migrationsFolder: "drizzle" });
+  });
+
+  beforeEach(async () => {
+    await (await db()).execute(sql`truncate table "user" cascade`);
+  });
+
+  afterAll(async () => {
+    const { closeDatabase } = await import("@/db");
+    await closeDatabase();
+    vi.unstubAllEnvs();
+  });
+
+  it("lets only one of two racing accounts lock the same profile", async () => {
+    const { lockProfile } = await import("./accounts");
+    await createUser("a");
+    await createUser("b");
+    const results = await Promise.all([lockProfile("a", "biodev", true), lockProfile("b", "biodev", true)]);
+    expect(results).toContainEqual({ ok: true });
+    expect(results).toContainEqual({ ok: false, reason: "in_use" });
+  });
+
+  it("stores the normalized username once and requires the terms", async () => {
+    const { lockProfile } = await import("./accounts");
+    const { resolveTarget } = await import("./instagram");
+    await createUser("a");
+    expect(await lockProfile("a", resolveTarget("@BioDev")!, false)).toEqual({ ok: false, reason: "terms_required" });
+    expect(await lockProfile("a", resolveTarget("@BioDev")!, true)).toEqual({ ok: true });
+    expect(await lockProfile("a", "outro", true)).toEqual({ ok: false, reason: "already_locked" });
+    const row = await readUser("a");
+    expect(row.instagramUsername).toBe("biodev");
+    expect(row.termsAcceptedAt).toBeInstanceOf(Date);
+  });
+
+  it("rejects plan and profile changes sent through Better Auth's update-user", async () => {
+    const { getAuth } = await import("./auth");
+    const { serializeSignedCookie } = await import("better-call");
+    await createUser("a");
+    const auth = getAuth()!;
+    const { token } = await (await auth.$context).internalAdapter.createSession("a");
+    const cookie = (await serializeSignedCookie("better-auth.session_token", token, SECRET)).split(";")[0];
+
+    // Control: the same session may change an allowed field, so the rejection below is about the fields.
+    await auth.api.updateUser({ body: { name: "Novo nome" }, headers: new Headers({ cookie }) });
+    await expect(
+      auth.api.updateUser({ body: { plan: "completo", instagramUsername: "x" } as never, headers: new Headers({ cookie }) }),
+    ).rejects.toThrow(/not allowed/);
+    const row = await readUser("a");
+    expect(row.name).toBe("Novo nome");
+    expect(row.plan).toBe("basico");
+    expect(row.instagramUsername).toBeNull();
+  });
+
+  it("deletes sessions with the account and frees its profile", async () => {
+    const { deleteAccount, isUsernameTaken, lockProfile } = await import("./accounts");
+    const { getAuth } = await import("./auth");
+    const { session } = await import("@/db/schema");
+    await createUser("a");
+    await lockProfile("a", "biodev", true);
+    await (await getAuth()!.$context).internalAdapter.createSession("a");
+
+    await deleteAccount("a");
+    expect(await isUsernameTaken("biodev")).toBe(false);
+    expect(await (await db()).select().from(session).where(eq(session.userId, "a"))).toHaveLength(0);
+  });
+
+  it("counts accounts by plan and signup window", async () => {
+    const { getAccountStats, setPlan } = await import("./accounts");
+    const now = new Date("2026-10-18T12:00:00Z");
+    await createUser("new", new Date("2026-10-15T12:00:00Z"));
+    await createUser("month", new Date("2026-10-01T12:00:00Z"));
+    await createUser("old", new Date("2026-08-01T12:00:00Z"));
+    await setPlan("old", "completo");
+
+    expect(await getAccountStats(now)).toEqual({
+      total: 3,
+      byPlan: { basico: 2, intermediario: 0, completo: 1 },
+      newLast7: 1,
+      newLast30: 2,
+    });
+  });
+});

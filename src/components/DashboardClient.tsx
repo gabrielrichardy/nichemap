@@ -10,11 +10,26 @@ import { ThemeAnalysis } from "./ThemeAnalysis";
 import { MarketTable } from "./MarketTable";
 import { TopContent } from "./TopContent";
 import { Opportunities } from "./Opportunities";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, Lock } from "lucide-react";
+import Link from "next/link";
 import { withTarget } from "@/lib/nav";
 import { DataSourceBanner } from "./DataSourceBanner";
 
-export function DashboardClient({ target }: { target: string }) {
+function CompetitorsLocked() {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-start gap-3">
+      <Lock className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" aria-hidden="true" />
+      <div>
+        <p className="text-sm font-medium text-slate-800">Concorrentes e oportunidades estão no plano Completo</p>
+        <Link href="/plano?secao=/mercado" className="text-xs text-blue-600 font-medium hover:underline">
+          Ver como mudar de plano
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+export function DashboardClient({ target, showCompetitors }: { target: string; showCompetitors: boolean }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,11 +89,15 @@ export function DashboardClient({ target }: { target: string }) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <ThemeAnalysis themes={data.themes} />
-            <MarketTable
-              market={data.market}
-              moreHref={withTarget("/mercado", target)}
-              sample={data.sampleSections.includes("market")}
-            />
+            {showCompetitors ? (
+              <MarketTable
+                market={data.market}
+                moreHref={withTarget("/mercado", target)}
+                sample={data.sampleSections.includes("market")}
+              />
+            ) : (
+              <CompetitorsLocked />
+            )}
           </div>
         </div>
 
@@ -87,11 +106,13 @@ export function DashboardClient({ target }: { target: string }) {
         </div>
       </div>
 
-      <Opportunities
-        items={data.opportunities}
-        moreHref={withTarget("/oportunidades", target)}
-        sample={data.sampleSections.includes("opportunities")}
-      />
+      {showCompetitors && (
+        <Opportunities
+          items={data.opportunities}
+          moreHref={withTarget("/oportunidades", target)}
+          sample={data.sampleSections.includes("opportunities")}
+        />
+      )}
     </div>
   );
 }

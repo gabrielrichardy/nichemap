@@ -33,6 +33,11 @@ Copie `.env.example` para `.env.local` (ignorado pelo Git) e preencha só o que 
 | `META_VERIFICATION_CODE` | Código da meta tag `facebook-domain-verification`; vazio = sem tag |
 | `INSTAGRAM_COMPETITORS` | Concorrentes do Market Radar, separados por vírgula (até 10) |
 | `CRON_SECRET` | Segredo da coleta diária `/api/cron/snapshot` (16+ caracteres aleatórios) |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Cliente OAuth do Google para "Entrar com Google" |
+| `BETTER_AUTH_SECRET` | Assina as sessões; 32+ caracteres aleatórios |
+| `BETTER_AUTH_URL` | Endereço do site (`http://localhost:3000` em dev, domínio real em produção) |
+| `ADMIN_EMAILS` | E-mails do Google com acesso a `/admin` e Configurações, separados por vírgula |
+| `SUPPORT_WHATSAPP` | WhatsApp do suporte mostrado aos clientes (DDD + número) |
 
 Em produção, as mesmas variáveis ficam na Vercel (Settings > Environment Variables).
 
@@ -57,6 +62,22 @@ Para o `business_discovery` devolver dados reais, o app precisa passar por este 
 6. **Token long-lived ou System User** com as permissões acima; preencha `INSTAGRAM_ACCESS_TOKEN` e `INSTAGRAM_BUSINESS_ID` na Vercel.
 7. **Testar:** `/api/instagram?target=@perfil` deve responder `source: "live"`. Erros comuns: `(#10) permission denied` (app fora de Live ou permissão sem Advanced Access) e `(#200) Access token has expired` (token curto vencido).
 
+## Login com Google
+
+Sem as quatro variáveis de login, o site mostra "Login ainda não configurado" e ninguém entra no painel.
+
+1. Acesse https://console.cloud.google.com, crie (ou escolha) um projeto.
+2. **APIs e serviços > Tela de permissão OAuth**: tipo **Externo**; preencha nome do app, e-mail de suporte, links `https://<seu-domínio>/privacidade` e `https://<seu-domínio>/termos`. Escopos: os padrões (`openid`, `email`, `profile`), que não exigem verificação do Google. Publique o app ("Em produção") para qualquer pessoa conseguir entrar.
+3. **Credenciais > Criar credenciais > ID do cliente OAuth**, tipo **Aplicativo da Web**. Em **URIs de redirecionamento autorizados**, adicione:
+   - `http://localhost:3000/api/auth/callback/google` (desenvolvimento)
+   - `https://<seu-domínio>/api/auth/callback/google` (produção)
+4. Copie o ID e a chave secreta para `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`.
+5. Gere `BETTER_AUTH_SECRET` (`npx @better-auth/cli secret` ou 32+ caracteres aleatórios) e defina `BETTER_AUTH_URL`.
+6. Defina `ADMIN_EMAILS` com o seu e-mail do Google e `SUPPORT_WHATSAPP` com o número do suporte.
+7. Na Vercel, cadastre as mesmas variáveis (com `BETTER_AUTH_URL` = domínio real), além de `DATABASE_URL` e `DATABASE_URL_UNPOOLED` do Neon, e faça um novo deploy.
+
+Fluxo do cliente: entra com o Google → digita o @ → confirma a foto do perfil (escolha definitiva) → painel conforme o plano (todos começam no Básico). O admin muda planos e destrava perfis em `/admin`.
+
 ## Banco
 
 1. Tenha um PostgreSQL de desenvolvimento (local ou provedor) — nunca produção para testes.
@@ -64,7 +85,9 @@ Para o `business_discovery` devolver dados reais, o app precisa passar por este 
 3. Ao criar/alterar tabelas em `src/db/schema/`, rode `npm run db:generate` e revise o SQL em `drizzle/`.
 4. Aplique com `npm run db:migrate` somente no banco correto.
 
-A tabela `profile_snapshots` (migration `drizzle/0000_profile_snapshots.sql`) guarda um registro por perfil por dia.
+A tabela `profile_snapshots` (migration `drizzle/0000_profile_snapshots.sql`) guarda um registro por perfil por dia. As tabelas de login `user`, `session`, `account` e `verification` (migration `drizzle/0001_auth.sql`) guardam contas, sessões, plano e @ travado.
+
+Banco do projeto: Neon, projeto `nichemap` (região `aws-us-east-1`), criado em 2026-10-18 com as duas migrations aplicadas.
 
 ### Banco de produção (Vercel)
 
@@ -74,7 +97,7 @@ A tabela `profile_snapshots` (migration `drizzle/0000_profile_snapshots.sql`) gu
 
 ### Testar contra um Postgres descartável
 
-O teste `src/lib/snapshots.db.test.ts` só roda com `TEST_DATABASE_URL` apontando para um banco **descartável** (ele aplica a migration e apaga a tabela). Exemplo com o PostgreSQL local, sem senha, numa pasta temporária:
+Os testes `src/lib/snapshots.db.test.ts` e `src/lib/accounts.db.test.ts` só rodam com `TEST_DATABASE_URL` apontando para um banco **descartável** (eles aplicam as migrations e apagam as tabelas). Exemplo com o PostgreSQL local, sem senha, numa pasta temporária:
 
 ```bash
 initdb -D /tmp/nichemap-pg -U postgres -A trust

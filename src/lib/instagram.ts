@@ -1,4 +1,5 @@
 import "server-only";
+import { listLockedUsernames } from "./accounts";
 import { buildMockData } from "./mockData";
 import { getCompetitorUsernames, getInstagramCredentials, isDatabaseConfigured } from "./env";
 import { instagramUsernameSchema } from "./env-schema";
@@ -135,12 +136,29 @@ function buildNote(days: number | null, sampleSections: SampleSection[]): string
   return `Perfil, publicações, conteúdos e temas vêm da API do Instagram. ${history}${samples}`;
 }
 
-export async function getDashboardData(targetUsername: string): Promise<DashboardData> {
+export interface DashboardOptions {
+  // false: no competitor calls at all (plans without Market Radar).
+  includeCompetitors?: boolean;
+  // false: no full post list (plans without the Conteúdo section).
+  includeContent?: boolean;
+  // false: return null instead of sample data when real data is unavailable (customers).
+  mockOnFailure?: boolean;
+}
+
+export function getDashboardData(
+  targetUsername: string,
+  options?: DashboardOptions & { mockOnFailure?: true },
+): Promise<DashboardData>;
+export function getDashboardData(targetUsername: string, options: DashboardOptions): Promise<DashboardData | null>;
+export async function getDashboardData(
+  targetUsername: string,
+  { includeCompetitors = true, includeContent = true, mockOnFailure = true }: DashboardOptions = {},
+): Promise<DashboardData | null> {
   try {
     const credentials = getInstagramCredentials();
-    if (!credentials) return buildMockData(targetUsername);
+    if (!credentials) return mockOnFailure ? buildMockData(targetUsername) : null;
 
-    const competitors = competitorsOrNone();
+    const competitors = includeCompetitors ? competitorsOrNone() : [];
     const [data, history, competitorResults] = await Promise.all([
       fetchProfile(targetUsername, credentials),
       loadHistory([targetUsername, ...competitors]),
@@ -167,7 +185,9 @@ export async function getDashboardData(targetUsername: string): Promise<Dashboar
       .sort((a, b) => (b.like_count ?? 0) - (a.like_count ?? 0))
       .slice(0, 5)
       .map(toContentItem);
-    const content = [...media].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).map(toContentItem);
+    const content = includeContent
+      ? [...media].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).map(toContentItem)
+      : [];
 
     const profileScore = computeProfileScore({
       engagementPct: engajamentoPct,
@@ -185,7 +205,9 @@ export async function getDashboardData(targetUsername: string): Promise<Dashboar
     const summary = summarizeGrowth(withToday(history.get(targetUsername) ?? [], today));
 
     const mock = buildMockData(targetUsername);
-    const sampleSections: SampleSection[] = competitors.length ? [] : ["market", "opportunities"];
+    const sampleSections: SampleSection[] = competitors.length || !includeCompetitors ? [] : ["market", "opportunities"];
+    const marketFallback = includeCompetitors ? mock.market : [];
+    const opportunitiesFallback = includeCompetitors ? mock.opportunities : [];
 
     return {
       source: "live",
@@ -211,15 +233,18 @@ export async function getDashboardData(targetUsername: string): Promise<Dashboar
       growth: summary?.growth ?? [],
       contentTypes: buildContentTypeBreakdown(media),
       themes: extractThemes(media.map((m) => m.caption ?? "")),
-      market: competitors.length ? buildMarket(competitors, competitorResults, history) : mock.market,
+      market: competitors.length ? buildMarket(competitors, competitorResults, history) : marketFallback,
       topContent,
       content,
-      opportunities: competitors.length ? buildOpportunities(competitors, competitorResults, history) : mock.opportunities,
+      opportunities: competitors.length
+        ? buildOpportunities(competitors, competitorResults, history)
+        : opportunitiesFallback,
       sampleSections,
     };
   } catch (err) {
     const message = (err as Error).message;
-    logger.warn({ target: targetUsername, error: message }, "Instagram data unavailable, serving mock data");
+    logger.warn({ target: targetUsername, error: message }, "Instagram data unavailable");
+    if (!mockOnFailure) return null;
     const mock = buildMockData(targetUsername);
     mock.note = `Não foi possível buscar dados reais agora (${message}). Mostrando dados de exemplo.`;
     return mock;
@@ -232,12 +257,23 @@ export interface CollectResult {
   failed: { username: string; error: string }[];
 }
 
-// Daily job: one snapshot per tracked profile (default target + competitors). Live data only.
+// Customers' locked profiles; without a database (or on failure) the job tracks the rest.
+async function lockedOrNone(): Promise<string[]> {
+  if (!isDatabaseConfigured()) return [];
+  try {
+    return await listLockedUsernames();
+  } catch (err) {
+    logger.warn({ error: (err as Error).message }, "Locked profiles unavailable for snapshots");
+    return [];
+  }
+}
+
+// Daily job: one snapshot per tracked profile (default target, competitors, customers). Live data only.
 export async function collectDailySnapshots(): Promise<CollectResult> {
   const credentials = getInstagramCredentials();
   if (!credentials) throw new Error("Instagram não configurado (INSTAGRAM_ACCESS_TOKEN e INSTAGRAM_BUSINESS_ID).");
   const target = resolveTarget(undefined);
-  const usernames = [...new Set([...(target ? [target] : []), ...getCompetitorUsernames()])];
+  const usernames = [...new Set([...(target ? [target] : []), ...getCompetitorUsernames(), ...(await lockedOrNone())])];
   const takenOn = dayInBrazil(new Date());
 
   const results = await Promise.allSettled(

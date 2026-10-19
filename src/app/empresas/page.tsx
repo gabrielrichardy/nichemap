@@ -4,13 +4,15 @@ import { MarketTable } from "@/components/MarketTable";
 import { Opportunities } from "@/components/Opportunities";
 import { Section } from "@/components/Section";
 import { loadDashboard, type PageSearchParams } from "@/lib/dashboard";
+import { requireViewer } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Empresas · Nichemap" };
 
 export default async function EmpresasPage({ searchParams }: { searchParams: PageSearchParams }) {
-  const result = await loadDashboard(searchParams);
+  const viewer = await requireViewer("/empresas");
+  const result = await loadDashboard(searchParams, viewer);
   return (
-    <AppShell target={result.target}>
+    <AppShell target={result.target} viewer={viewer}>
       <Section
         title="Empresas"
         description="Perfis concorrentes (INSTAGRAM_COMPETITORS) com seguidores, crescimento e engajamento reais."

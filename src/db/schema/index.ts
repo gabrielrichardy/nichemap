@@ -17,3 +17,5 @@ export const profileSnapshots = pgTable(
 
 export type ProfileSnapshot = typeof profileSnapshots.$inferSelect;
 export type NewProfileSnapshot = typeof profileSnapshots.$inferInsert;
+
+export * from "./auth";

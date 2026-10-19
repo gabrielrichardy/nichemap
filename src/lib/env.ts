@@ -1,10 +1,13 @@
 import "server-only";
 import {
+  authSecretSchema,
   databaseUrlSchema,
+  httpUrlSchema,
   instagramBusinessIdSchema,
   instagramUsernameSchema,
   logLevelSchema,
   parseEnv,
+  whatsappDigitsSchema,
 } from "./env-schema";
 
 const MAX_COMPETITORS = 10;
@@ -40,4 +43,46 @@ export function getDatabaseUrl() {
 
 export function getLogLevel() {
   return parseEnv("LOG_LEVEL", process.env.LOG_LEVEL, logLevelSchema);
+}
+
+// Returns null until Google login is fully configured (all four variables set).
+export function getAuthConfig() {
+  const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
+  const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+  const secret = process.env.BETTER_AUTH_SECRET?.trim();
+  const baseURL = process.env.BETTER_AUTH_URL?.trim();
+  if (!googleClientId || !googleClientSecret || !secret || !baseURL) return null;
+  return {
+    googleClientId,
+    googleClientSecret,
+    secret: parseEnv("BETTER_AUTH_SECRET", secret, authSecretSchema),
+    baseURL: parseEnv("BETTER_AUTH_URL", baseURL, httpUrlSchema),
+  };
+}
+
+// ADMIN_EMAILS: comma-separated Google account emails with access to /admin.
+export function isAdminEmail(email: string | null | undefined): boolean {
+  const normalized = email?.trim().toLowerCase();
+  if (!normalized) return false;
+  return (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .includes(normalized);
+}
+
+// SUPPORT_WHATSAPP: support number shown to customers, any formatting accepted.
+export function getSupportWhatsappUrl(): string | null {
+  const raw = process.env.SUPPORT_WHATSAPP?.trim();
+  if (!raw) return null;
+  const digits = parseEnv("SUPPORT_WHATSAPP", raw.replace(/\D/g, ""), whatsappDigitsSchema);
+  return `https://wa.me/${digits.length <= 11 ? `55${digits}` : digits}`;
+}
+
+// For pages: an invalid number hides the link (Configurações reports it as invalid).
+export function getSupportLink(): string | null {
+  try {
+    return getSupportWhatsappUrl();
+  } catch {
+    return null;
+  }
 }

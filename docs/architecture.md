@@ -26,6 +26,10 @@ src/
     scanner, conteudo, mercado, empresas, oportunidades, relatorios/
                              páginas de seção (Server Components): loadDashboard() + Section
     configuracoes/page.tsx   estado das integrações via getIntegrationStatus()
+    entrar/, perfil/, conta/, plano/, admin/
+                             login (Google), escolha do @ com confirmação, minha conta (excluir), plano bloqueado, painel de admin
+    privacidade/, termos/    páginas legais públicas (rascunho)
+    api/auth/[...all]/       rotas do Better Auth (503 sem login configurado)
     globals.css              tokens CSS e Tailwind
     api/instagram/route.ts   GET: valida ?target e devolve DashboardData (real ou mock)
     api/cron/snapshot/       GET diário (vercel.json): grava um snapshot por perfil acompanhado
@@ -46,6 +50,11 @@ src/
     dashboard.ts             loadDashboard()/readTarget() para as páginas de seção (server-only)
     settings.ts              getIntegrationStatus(): só estados, nunca valores (server-only)
     nav.ts                   lista das seções e withTarget()
+    auth.ts / auth-client.ts Better Auth (Google + Drizzle), campos do usuário server-owned (input: false)
+    viewer.ts                getViewer/requireViewer/requireAdmin/targetFor: quem é o visitante, redirecionamentos, alvo
+    access.ts                planos e acesso por seção (puro, testado)
+    accounts.ts              travar/destravar @, plano, exclusão, listagem e estatísticas de contas
+    onboarding.ts            busca do perfil antes de travar (mensagens pt-BR)
     mockData.ts              dados de exemplo
     types.ts                 DashboardData e tipos de cada bloco
     env-schema.ts / env.ts   validação de ambiente (Zod); env.ts é server-only
@@ -79,13 +88,23 @@ Limitações conhecidas do fluxo atual:
 - Cada visita a uma página consulta a Graph API (perfil + até 10 concorrentes), sem cache. Revisar se o limite de chamadas da Meta aparecer.
 - O token vai como `access_token` na query string da Graph API (formato documentado pela Meta); não é registrado em log.
 
+## Login e autorização
+
+- Better Auth com Google; sessões no banco (sem cache em cookie), lidas a cada request por `getViewer()`. `getViewer()` sempre lê `headers()`, então nenhuma página que depende do visitante é pré-renderizada.
+- Toda página do painel chama `requireViewer(href)` antes de buscar dados: sem sessão → `/entrar`; cliente sem @ → `/perfil`; fora do plano → `/plano`; Configurações e `/admin` → 404 para clientes. `/api/instagram` aplica as mesmas regras (401/403/503).
+- Cliente: alvo = @ travado (`?target` ignorado), sem chamadas de concorrentes fora do Completo, sem dados de exemplo (mostra "Dados indisponíveis"). Admin: comportamento anterior.
+- `plan`, `instagramUsername`, `termsAcceptedAt`, `lastSeenAt` são `input: false` no Better Auth: `/api/auth/update-user` rejeita esses campos (teste de integração).
+- Server actions de admin chamam `requireAdmin()` e validam com Zod.
+- Risco: todas as visitas de todos os clientes usam o token do dono na Graph API, sem cache; com muitos clientes o limite da Meta pode estourar.
+
 ## Dados e migrations
 
 - Schema Drizzle em `src/db/schema/index.ts`, exportado para `getDb()`. Tipos via `$inferSelect`/`$inferInsert` quando houver tabelas.
 - `npm run db:generate` gera SQL em `drizzle/` sem conexão; revise o SQL. `npm run db:migrate` usa `DATABASE_URL_UNPOOLED` ou `DATABASE_URL` e só deve rodar contra um banco autorizado.
 - Pool: `max: 5`, timeout de conexão 5 s, ocioso 30 s; criado na primeira chamada a `getDb()`, então build e testes não precisam de banco.
 - `profile_snapshots` (`drizzle/0000_profile_snapshots.sql`): `username`, `taken_on` (dia no fuso de Brasília), `followers`, `media_count`, `engagement_pct`; índice único (`username`, `taken_on`) usado pelo upsert diário e pelas consultas por período.
-- Coleta: Vercel Cron chama `/api/cron/snapshot` às 11:00 UTC com `Authorization: Bearer $CRON_SECRET`; grava o perfil padrão e os concorrentes. Só grava dados reais (exige token).
+- `user`, `session`, `account`, `verification` (`drizzle/0001_auth.sql`): tabelas do Better Auth; `user` tem `plan` (padrão `basico`), `instagram_username` (único), `terms_accepted_at`, `last_seen_at` (último login). Sessões e contas Google apagam em cascata com o usuário.
+- Coleta: Vercel Cron chama `/api/cron/snapshot` às 11:00 UTC com `Authorization: Bearer $CRON_SECRET`; grava o perfil padrão, os concorrentes e os perfis travados pelos clientes. Só grava dados reais (exige token).
 - Leitura: `getDashboardData` busca os últimos 30 dias; se o banco falhar, o painel segue sem histórico e registra `warn` no log.
 
 ## Decisões
@@ -104,6 +123,8 @@ Limitações conhecidas do fluxo atual:
 | Next 16.3.3 → 16.4.2 (minor) | Canal estável mais recente, mesma major; `eslint-config-next` e `@next/env` alinhados | npm registry, 2026-10-17 | Próxima major |
 | Manter ESLint 9 e TypeScript 5 | ESLint 10 e TS 7 são majors novas; fora do escopo do bootstrap | npm registry, 2026-10-17 | Tarefa própria de atualização |
 | `turbopack.root` = pasta do projeto | Um `package-lock.json` solto num diretório pai fazia o Next inferir a raiz errada | Next docs via Context7 (`/vercel/next.js`, turbopack.mdx), 2026-10-17 | Se virar monorepo |
+| Better Auth 1.7.7 com Google | Login sem senha guardada; adaptador Drizzle; campos server-owned com `input: false` | Context7 `/better-auth/better-auth`, `npm view`, 2026-10-18 | Upgrade de major ou novo provedor |
+| Planos por seção em `access.ts`, aplicados no servidor | Bloqueio não pode ser só visual | Spec de login, 2026-10-18 | Cobrança automática |
 | Drizzle + PostgreSQL | Default do toolkit; necessidade concreta: snapshots diários | `PRODUCT.md` | Se o produto dispensar histórico |
 
 ## Manutenção

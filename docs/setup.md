@@ -19,6 +19,7 @@
 | `@types/node` ^20 → ^24 | Alinhar ao runtime Node 24 e ao peer do Vitest 5 (`^22 \|\| >=24`) | `npm view vitest peerDependencies` |
 | `turbopack.root` fixo | Aviso de raiz inferida por lockfile em diretório pai | Context7 `/vercel/next.js` (turbopack.mdx) |
 | Web mobile-first, sem Expo | Escolha do usuário | conversa, 2026-10-17 |
+| Better Auth 1.7.7 (versão exata) para login com Google | Suporta Next 16 App Router, adaptador Drizzle/PostgreSQL e Google; peers `next ^16`, `drizzle-orm ^0.45.2`. 1.7.7 era a versão estável mais recente com 2+ semanas | `npm view better-auth time peerDependencies`, Context7 `/better-auth/better-auth` (instalação, Next.js, Google, Drizzle), 2026-10-18 |
 | `.env.local.example` consolidado em `.env.example` | Um único arquivo de exemplo com banco + Instagram; `.gitignore` versiona só `.env.example` | toolkit `templates/next/.env.example` |
 
 ## Componentes
