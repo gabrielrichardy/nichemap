@@ -6,11 +6,12 @@ import { ProfileHeader } from "@/components/ProfileHeader";
 import { Section } from "@/components/Section";
 import { ThemeAnalysis } from "@/components/ThemeAnalysis";
 import { loadDashboard, type PageSearchParams } from "@/lib/dashboard";
+import { requireViewer } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Profile Scanner · Nichemap" };
 
 export default async function ScannerPage({ searchParams }: { searchParams: PageSearchParams }) {
-  const result = await loadDashboard(searchParams);
+  const result = await loadDashboard(searchParams, await requireViewer("/scanner"));
   return (
     <AppShell target={result.target}>
       <Section

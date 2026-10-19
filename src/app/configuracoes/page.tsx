@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/AppShell";
 import { readTarget, type PageSearchParams } from "@/lib/dashboard";
+import { requireViewer } from "@/lib/viewer";
 import { checkInstagramConnection, getIntegrationStatus, type IntegrationState } from "@/lib/settings";
 
 export const metadata: Metadata = { title: "Configurações · Nichemap" };
@@ -12,7 +13,7 @@ const STATE_LABEL: Record<IntegrationState, { text: string; className: string }>
 };
 
 export default async function ConfiguracoesPage({ searchParams }: { searchParams: PageSearchParams }) {
-  const target = await readTarget(searchParams);
+  const target = await readTarget(searchParams, await requireViewer("/configuracoes"));
   const { integrations, defaultTarget, graphVersion } = getIntegrationStatus();
   const connection = await checkInstagramConnection();
 

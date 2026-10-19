@@ -4,11 +4,12 @@ import { MarketTable } from "@/components/MarketTable";
 import { Opportunities } from "@/components/Opportunities";
 import { Section } from "@/components/Section";
 import { loadDashboard, type PageSearchParams } from "@/lib/dashboard";
+import { requireViewer } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Empresas · Nichemap" };
 
 export default async function EmpresasPage({ searchParams }: { searchParams: PageSearchParams }) {
-  const result = await loadDashboard(searchParams);
+  const result = await loadDashboard(searchParams, await requireViewer("/empresas"));
   return (
     <AppShell target={result.target}>
       <Section

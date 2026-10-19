@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getDashboardData, targetUsernameSchema } from "./instagram";
+import { listLockedUsernames } from "./accounts";
+import { collectDailySnapshots, getDashboardData, targetUsernameSchema } from "./instagram";
+import { saveSnapshot } from "./snapshots";
 
 vi.mock("server-only", () => ({}));
 vi.mock("./logger", () => ({ logger: { warn: vi.fn() } }));
+vi.mock("./accounts", () => ({ listLockedUsernames: vi.fn(async () => []) }));
+vi.mock("./snapshots", () => ({ getRecentSnapshots: vi.fn(async () => new Map()), saveSnapshot: vi.fn(async () => {}) }));
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -31,6 +35,12 @@ describe("getDashboardData", () => {
     const data = await getDashboardData("biodev");
     expect(data.source).toBe("mock");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns null instead of mock data when asked not to fall back", async () => {
+    vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "");
+    vi.stubEnv("INSTAGRAM_BUSINESS_ID", "");
+    expect(await getDashboardData("biodev", { mockOnFailure: false })).toBeNull();
   });
 
   it("falls back to mock data without exposing the configured value for an invalid business ID", async () => {
@@ -104,5 +114,41 @@ describe("getDashboardData with live data", () => {
       { name: "LABTECH", type: "Perfil", score: 20, note: "Engajamento 2% · 5.000 seguidores" },
     ]);
     expect(data.sampleSections).toEqual([]);
+  });
+
+  it("skips competitors entirely when they are not included", async () => {
+    vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "test-token");
+    vi.stubEnv("INSTAGRAM_BUSINESS_ID", "123");
+    vi.stubEnv("INSTAGRAM_COMPETITORS", "labtech,outro");
+    vi.stubEnv("DATABASE_URL", "");
+    stubGraph();
+
+    const data = await getDashboardData("biodev", { includeCompetitors: false });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(data.market).toEqual([]);
+    expect(data.opportunities).toEqual([]);
+    expect(data.sampleSections).toEqual([]);
+  });
+
+  it("returns null when the API fails and mock data is not allowed", async () => {
+    vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "test-token");
+    vi.stubEnv("INSTAGRAM_BUSINESS_ID", "123");
+    vi.stubEnv("INSTAGRAM_COMPETITORS", "");
+    stubGraph();
+    expect(await getDashboardData("broken", { mockOnFailure: false })).toBeNull();
+  });
+
+  it("collects daily snapshots for customers' locked profiles too", async () => {
+    vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "test-token");
+    vi.stubEnv("INSTAGRAM_BUSINESS_ID", "123");
+    vi.stubEnv("INSTAGRAM_COMPETITORS", "labtech");
+    vi.stubEnv("INSTAGRAM_TARGET_USERNAME", "biodev");
+    vi.stubEnv("DATABASE_URL", "postgres://app:pw@localhost:5432/app");
+    vi.mocked(listLockedUsernames).mockResolvedValueOnce(["cliente", "labtech"]);
+    stubGraph();
+
+    const result = await collectDailySnapshots();
+    expect(result.saved.sort()).toEqual(["biodev", "cliente", "labtech"]);
+    expect(saveSnapshot).toHaveBeenCalledTimes(3);
   });
 });

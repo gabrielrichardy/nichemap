@@ -3,11 +3,12 @@ import { AppShell } from "@/components/AppShell";
 import { Opportunities } from "@/components/Opportunities";
 import { Section } from "@/components/Section";
 import { loadDashboard, type PageSearchParams } from "@/lib/dashboard";
+import { requireViewer } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Oportunidades · Nichemap" };
 
 export default async function OportunidadesPage({ searchParams }: { searchParams: PageSearchParams }) {
-  const result = await loadDashboard(searchParams);
+  const result = await loadDashboard(searchParams, await requireViewer("/oportunidades"));
   return (
     <AppShell target={result.target}>
       <Section

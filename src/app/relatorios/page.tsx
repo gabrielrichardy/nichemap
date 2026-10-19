@@ -6,11 +6,12 @@ import { Section } from "@/components/Section";
 import { ThemeAnalysis } from "@/components/ThemeAnalysis";
 import { TopContent } from "@/components/TopContent";
 import { loadDashboard, type PageSearchParams } from "@/lib/dashboard";
+import { requireViewer } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Relatórios · Nichemap" };
 
 export default async function RelatoriosPage({ searchParams }: { searchParams: PageSearchParams }) {
-  const result = await loadDashboard(searchParams);
+  const result = await loadDashboard(searchParams, await requireViewer("/relatorios"));
   return (
     <AppShell target={result.target}>
       <Section title="Relatórios" description="Resumo do perfil pronto para imprimir ou salvar em PDF." result={result}>

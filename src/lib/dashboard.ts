@@ -1,6 +1,8 @@
 import "server-only";
-import { getDashboardData, INVALID_TARGET_MESSAGE, resolveTarget } from "./instagram";
+import { canSeeCompetitors } from "./access";
+import { getDashboardData, INVALID_TARGET_MESSAGE, type DashboardOptions } from "./instagram";
 import type { DashboardData } from "./types";
+import { targetFor, type Viewer } from "./viewer";
 
 export type PageSearchParams = Promise<{ target?: string | string[] }>;
 
@@ -8,20 +10,29 @@ export type DashboardResult =
   | { target: string; data: DashboardData; error?: undefined }
   | { target: string; data?: undefined; error: string };
 
-// Server-side data for section pages: same validation as /api/instagram.
-export async function loadDashboard(searchParams: PageSearchParams): Promise<DashboardResult> {
-  const { target: raw } = await searchParams;
-  const param = Array.isArray(raw) ? raw[0] : raw;
-  const target = resolveTarget(param);
-  if (!target) {
-    return { target: param ?? "", error: INVALID_TARGET_MESSAGE };
-  }
-  return { target, data: await getDashboardData(target) };
+export const UNAVAILABLE_MESSAGE = "Dados indisponíveis no momento. Tente novamente mais tarde.";
+
+// Customers never get sample data presented as their profile; admins keep the fallback.
+export function dashboardOptionsFor(viewer: Viewer): Required<DashboardOptions> {
+  return { includeCompetitors: canSeeCompetitors(viewer), mockOnFailure: viewer.isAdmin };
 }
 
-// Profile shown in the search box for pages that do not load Instagram data.
-export async function readTarget(searchParams: PageSearchParams): Promise<string> {
+async function firstParam(searchParams: PageSearchParams): Promise<string | undefined> {
   const { target: raw } = await searchParams;
-  const param = Array.isArray(raw) ? raw[0] : raw;
-  return resolveTarget(param) ?? param ?? "";
+  return Array.isArray(raw) ? raw[0] : raw;
+}
+
+// Server-side data for section pages: same rules as /api/instagram.
+export async function loadDashboard(searchParams: PageSearchParams, viewer: Viewer): Promise<DashboardResult> {
+  const param = await firstParam(searchParams);
+  const target = targetFor(viewer, param);
+  if (!target) return { target: param ?? "", error: INVALID_TARGET_MESSAGE };
+  const data = await getDashboardData(target, dashboardOptionsFor(viewer));
+  return data ? { target, data } : { target, error: UNAVAILABLE_MESSAGE };
+}
+
+// Profile shown in the header for pages that do not load Instagram data.
+export async function readTarget(searchParams: PageSearchParams, viewer: Viewer): Promise<string> {
+  const param = await firstParam(searchParams);
+  return targetFor(viewer, param) ?? param ?? "";
 }

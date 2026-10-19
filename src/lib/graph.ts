@@ -16,6 +16,7 @@ export interface RawBusinessDiscovery {
   username: string;
   name?: string;
   biography?: string;
+  profile_picture_url?: string;
   followers_count: number;
   media_count: number;
   media?: { data: RawMedia[] };
@@ -54,7 +55,7 @@ async function graphGet<T>(path: string, fields: string, accessToken: string): P
   return json as T;
 }
 
-const PROFILE_FIELDS = "username,name,biography,followers_count,media_count";
+const PROFILE_FIELDS = "username,name,biography,profile_picture_url,followers_count,media_count";
 const MEDIA_FIELDS = "media.limit(25){caption,media_type,like_count,comments_count,timestamp,permalink}";
 
 // `username` must already be validated: it is interpolated into the fields expression.
