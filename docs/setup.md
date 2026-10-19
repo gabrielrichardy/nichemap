@@ -43,6 +43,18 @@
 
 Sobreposição de skills: as mesmas 9 skills já existem globalmente em `~/.claude/skills` (e `find-skills` em `~/.agents/skills`). Nada global foi alterado. As cópias locais garantem que o repositório funcione em outra máquina; nesta máquina a versão global pode ter precedência no Claude Code.
 
+## Cobrança (Asaas)
+
+| Item | Estado | Fonte e data |
+|---|---|---|
+| Documentação da API consultada | Validado na doc | docs.asaas.com (autenticação, criar cobrança, assinaturas, webhooks, eventos de cobranças e assinaturas), 2026-10-19. Taxas e preços da spec: asaas.com/precos-e-taxas |
+| Ambiente | `ASAAS_ENV` (`sandbox` padrão ou `production`) escolhe `https://api-sandbox.asaas.com/v3` ou `https://api.asaas.com/v3` e o painel `sandbox.asaas.com` ou `asaas.com` | `src/lib/env.ts` |
+| Variáveis | `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN` (32 a 255 caracteres, sem espaços), `ASAAS_ENV`; só no servidor, validadas em `src/lib/env-schema.ts`. Sem `ASAAS_API_KEY` e `ASAAS_WEBHOOK_TOKEN`, "Assinar" fica indisponível | `.env.example`, `docs/onboarding.md` |
+| Webhook | `POST /api/billing/webhook`, token no cabeçalho `asaas-access-token`. Eventos tratados: `PAYMENT_CONFIRMED`, `PAYMENT_RECEIVED`, `PAYMENT_OVERDUE`, `PAYMENT_REFUNDED`, `PAYMENT_CHARGEBACK_REQUESTED`, `SUBSCRIPTION_DELETED`, `SUBSCRIPTION_INACTIVATED` | docs.asaas.com, webhooks, 2026-10-19 |
+| Cobrança e renovação com `billingType: "UNDEFINED"` | **Não confirmado.** Não se sabe se, paga a primeira fatura com cartão, o Asaas cobra o cartão sozinho nos meses seguintes, nem se o Pix vira Pix Automático. Decide no sandbox (passo 5 do plano). Se não servir, `createSubscription` ganha `billingType` e o formulário pergunta o meio | docs.asaas.com, criar cobrança e assinaturas, 2026-10-19 |
+| Link do cliente no painel do Asaas (`/customerAccount/show/{id}`) | **Não confirmado** no painel real; conferir no sandbox | `src/lib/env.ts` |
+| Cron de prazos | `/api/cron/billing` todo dia às 12:00 UTC (`vercel.json`), com `Authorization: Bearer $CRON_SECRET` | `vercel.json`, `src/app/api/cron/billing/route.ts` |
+
 ## Documentação criada
 
 `PRODUCT.md` (novo), `README.md` (reescrito a partir do README do protótipo, conteúdo do Instagram movido para `docs/onboarding.md`), `AGENTS.md` (bloco gerado pelo Next preservado no topo + acordos do toolkit), `CLAUDE.md` (já era `@AGENTS.md`, mantido), `docs/architecture.md`, `docs/design.md`, `docs/onboarding.md`, `docs/quality.md`, `docs/setup.md`. Não havia `product.md`.
@@ -81,6 +93,8 @@ Reexecução: rodar de novo `skills add` sobrescreve as mesmas cópias; `.mcp.js
 5. Definir `INSTAGRAM_COMPETITORS` (concorrentes do Market Radar e de Oportunidades). Perfil padrão já definido: `INSTAGRAM_TARGET_USERNAME=gabriel__richardy`.
 6. Pessoas (#4): seção oculta até escolher fonte. Oportunidades (#5) passam a vir dos concorrentes quando `INSTAGRAM_COMPETITORS` existir.
 7. Vercel (2026-10-18): projeto renomeado para `nichemap`; domínio `nichemap-app.vercel.app` adicionado (`nichemap.vercel.app` pertence a outra conta). O antigo `niche-intelligence-six.vercel.app` continua ativo; se a verificação de domínio da Meta for configurada, use o domínio definitivo.
+
+8. Cobrança automática: teste completo no sandbox (roteiro da spec, passo 5) pendente, com a chave sandbox do dono. Conta de produção e chave real só com OK explícito do dono. Ver `docs/onboarding.md` (Cobrança).
 
 Evidência da coleta diária (2026-10-18, local): Postgres 17 descartável na porta 5499, `snapshots.db.test.ts` passou (migration + upsert + histórico); `/api/cron/snapshot` respondeu 401 sem/errado e, com o segredo, chamou a Graph API real e registrou o erro 190 do token falso. Coleta bem-sucedida com token válido: não testada.
 
