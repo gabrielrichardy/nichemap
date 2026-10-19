@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { listLockedUsernames } from "./accounts";
+import { listLockedUsernames, listUnofficialUsernames } from "./accounts";
 import { getApifyProfile } from "./apify";
 import { collectDailySnapshots, getDashboardData, targetUsernameSchema } from "./instagram";
 import { saveSnapshot } from "./snapshots";
 
 vi.mock("server-only", () => ({}));
 vi.mock("./logger", () => ({ logger: { warn: vi.fn() } }));
-vi.mock("./accounts", () => ({ listLockedUsernames: vi.fn(async () => []) }));
+vi.mock("./accounts", () => ({
+  listLockedUsernames: vi.fn(async () => []),
+  listUnofficialUsernames: vi.fn(async () => []),
+}));
 vi.mock("./apify", () => ({ getApifyProfile: vi.fn() }));
 vi.mock("./snapshots", () => ({ getRecentSnapshots: vi.fn(async () => new Map()), saveSnapshot: vi.fn(async () => {}) }));
 afterEach(() => {
@@ -198,5 +201,30 @@ describe("getDashboardData with live data", () => {
     const result = await collectDailySnapshots();
     expect(result.saved.sort()).toEqual(["biodev", "cliente", "labtech"]);
     expect(saveSnapshot).toHaveBeenCalledTimes(3);
+  });
+
+  it("uses the unofficial source only for opted-in customers' locked profiles", async () => {
+    vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "test-token");
+    vi.stubEnv("INSTAGRAM_BUSINESS_ID", "123");
+    vi.stubEnv("INSTAGRAM_COMPETITORS", "labtech");
+    vi.stubEnv("INSTAGRAM_TARGET_USERNAME", "biodev");
+    vi.stubEnv("DATABASE_URL", "postgres://app:pw@localhost:5432/app");
+    vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", "true");
+    vi.stubEnv("APIFY_TOKEN", "apify-token");
+    vi.mocked(listLockedUsernames).mockResolvedValueOnce(["cliente", "pessoal"]);
+    vi.mocked(listUnofficialUsernames).mockResolvedValueOnce(["pessoal"]);
+    // Every @ is refused as non-business, so only an allowed fallback can save a snapshot.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ error: { code: 100, message: "not found" } }, { status: 400 })),
+    );
+    vi.mocked(getApifyProfile).mockResolvedValueOnce(profile("pessoal", 300).business_discovery as never);
+
+    const result = await collectDailySnapshots();
+    expect(result.saved).toEqual(["pessoal"]);
+    expect(result.failed.map((f) => f.username).sort()).toEqual(["biodev", "cliente", "labtech"]);
+    expect(getApifyProfile).toHaveBeenCalledTimes(1);
+    expect(getApifyProfile).toHaveBeenCalledWith("pessoal");
+    expect(saveSnapshot).toHaveBeenCalledWith(expect.objectContaining({ username: "pessoal", followers: 300 }));
   });
 });

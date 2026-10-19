@@ -38,6 +38,20 @@ describe("profile actions", () => {
     expect(lookupProfile).not.toHaveBeenCalled();
   });
 
+  it("pass the account's unofficial source permission to the lookup", async () => {
+    vi.mocked(getViewer).mockResolvedValue({
+      isAdmin: false,
+      instagramUsername: null,
+      userId: "u1",
+      unofficialSource: true,
+    } as never);
+    vi.mocked(lookupProfile).mockResolvedValue({ ok: false, message: "x" });
+    await previewProfile({}, form("pessoal"));
+    await confirmProfile({}, form("pessoal"));
+    expect(lookupProfile).toHaveBeenNthCalledWith(1, "pessoal", { allowUnofficial: true });
+    expect(lookupProfile).toHaveBeenNthCalledWith(2, "pessoal", { allowUnofficial: true });
+  });
+
   it("send visitors without a session to /entrar", async () => {
     vi.mocked(getViewer).mockResolvedValue(null);
     await expect(previewProfile({}, form("outro"))).rejects.toThrow("REDIRECT /entrar");

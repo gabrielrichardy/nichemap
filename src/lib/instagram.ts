@@ -1,5 +1,5 @@
 import "server-only";
-import { listLockedUsernames } from "./accounts";
+import { listLockedUsernames, listUnofficialUsernames } from "./accounts";
 import { buildMockData } from "./mockData";
 import { getCompetitorUsernames, getInstagramCredentials, isDatabaseConfigured } from "./env";
 import { instagramUsernameSchema } from "./env-schema";
@@ -270,28 +270,34 @@ export interface CollectResult {
   failed: { username: string; error: string }[];
 }
 
-// Customers' locked profiles; without a database (or on failure) the job tracks the rest.
-async function lockedOrNone(): Promise<string[]> {
+// Customers' locked profiles (all, or only those opted in to the unofficial source);
+// without a database (or on failure) the job tracks the rest on the official source.
+async function lockedOrNone(list: () => Promise<string[]> = listLockedUsernames): Promise<string[]> {
   if (!isDatabaseConfigured()) return [];
   try {
-    return await listLockedUsernames();
+    return await list();
   } catch (err) {
     logger.warn({ error: (err as Error).message }, "Locked profiles unavailable for snapshots");
     return [];
   }
 }
 
-// Daily job: one snapshot per tracked profile (default target, competitors, customers). Live data only.
+// Daily job: one snapshot per tracked profile (default target, competitors, customers).
+// Only locked profiles of opted-in accounts may use the unofficial source.
 export async function collectDailySnapshots(): Promise<CollectResult> {
   const credentials = getInstagramCredentials();
   if (!credentials) throw new Error("Instagram não configurado (INSTAGRAM_ACCESS_TOKEN e INSTAGRAM_BUSINESS_ID).");
   const target = resolveTarget(undefined);
-  const usernames = [...new Set([...(target ? [target] : []), ...getCompetitorUsernames(), ...(await lockedOrNone())])];
+  const [locked, unofficial] = await Promise.all([lockedOrNone(), lockedOrNone(listUnofficialUsernames)]);
+  const usernames = [...new Set([...(target ? [target] : []), ...getCompetitorUsernames(), ...locked])];
+  const unofficialSet = new Set(unofficial);
   const takenOn = dayInBrazil(new Date());
 
   const results = await Promise.allSettled(
     usernames.map(async (username) => {
-      const profile = await fetchProfile(username, credentials);
+      const { profile } = await fetchProfileWithFallback(username, credentials, {
+        allowUnofficial: unofficialSet.has(username),
+      });
       await saveSnapshot({
         username,
         takenOn,

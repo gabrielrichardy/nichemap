@@ -25,15 +25,19 @@ async function choosingViewer() {
 }
 
 export async function previewProfile(_: PreviewState, formData: FormData): Promise<PreviewState> {
-  await choosingViewer();
-  const result = await lookupProfile(String(formData.get("username") ?? ""));
+  const viewer = await choosingViewer();
+  const result = await lookupProfile(String(formData.get("username") ?? ""), {
+    allowUnofficial: viewer.unofficialSource,
+  });
   return result.ok ? { preview: result.profile } : { error: result.message, inUse: result.inUse };
 }
 
 // Looks the profile up again so a stale or edited form cannot lock an invalid @.
 export async function confirmProfile(_: ConfirmState, formData: FormData): Promise<ConfirmState> {
   const viewer = await choosingViewer();
-  const lookup = await lookupProfile(String(formData.get("username") ?? ""));
+  const lookup = await lookupProfile(String(formData.get("username") ?? ""), {
+    allowUnofficial: viewer.unofficialSource,
+  });
   if (!lookup.ok) return { error: lookup.message, inUse: lookup.inUse };
   const result = await lockProfile(viewer.userId, lookup.profile.username, formData.get("terms") === "on");
   if (!result.ok) return { error: lockMessage(result), inUse: result.reason === "in_use" };

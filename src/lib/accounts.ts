@@ -119,3 +119,12 @@ export async function listLockedUsernames(): Promise<string[]> {
     .where(isNotNull(user.instagramUsername));
   return rows.flatMap((r) => (r.username ? [r.username] : []));
 }
+
+// Locked profiles of accounts opted in to the unofficial source: the snapshot job may use it for them.
+export async function listUnofficialUsernames(): Promise<string[]> {
+  const rows = await getDb()
+    .select({ username: user.instagramUsername })
+    .from(user)
+    .where(and(eq(user.unofficialSource, true), isNotNull(user.instagramUsername)));
+  return rows.flatMap((r) => (r.username ? [r.username] : []));
+}
