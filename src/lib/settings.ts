@@ -1,5 +1,11 @@
 import "server-only";
-import { getCompetitorUsernames, getDatabaseUrl, getInstagramCredentials } from "./env";
+import {
+  getAuthConfig,
+  getCompetitorUsernames,
+  getDatabaseUrl,
+  getInstagramCredentials,
+  getSupportWhatsappUrl,
+} from "./env";
 import { checkConnection, GRAPH_VERSION } from "./graph";
 import { resolveTarget } from "./instagram";
 
@@ -51,6 +57,27 @@ export function getIntegrationStatus() {
       variables: "CRON_SECRET",
       state: stateOf(isSet("CRON_SECRET")),
       help: "Protege /api/cron/snapshot; a Vercel envia esse segredo ao chamar a coleta.",
+    },
+    {
+      name: "Login com Google",
+      variables: "GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, BETTER_AUTH_SECRET, BETTER_AUTH_URL",
+      state: stateOf(
+        ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "BETTER_AUTH_SECRET", "BETTER_AUTH_URL"].every(isSet),
+        getAuthConfig,
+      ),
+      help: "Sem as quatro variáveis ninguém consegue entrar no painel.",
+    },
+    {
+      name: "Administradores",
+      variables: "ADMIN_EMAILS",
+      state: stateOf(isSet("ADMIN_EMAILS")),
+      help: "E-mails do Google com acesso ao painel de admin, separados por vírgula.",
+    },
+    {
+      name: "Suporte (WhatsApp)",
+      variables: "SUPPORT_WHATSAPP",
+      state: stateOf(isSet("SUPPORT_WHATSAPP"), getSupportWhatsappUrl),
+      help: "Número mostrado aos clientes para suporte e troca de plano.",
     },
     {
       name: "Verificação de domínio Meta",
