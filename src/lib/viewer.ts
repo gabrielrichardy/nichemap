@@ -21,9 +21,12 @@ export interface Viewer {
 // Read on every request from the database session (no cookie cache), so plan changes,
 // unlocks and deletions apply on the next page view.
 export async function getViewer(): Promise<Viewer | null> {
+  // Read the request first: it marks every page that checks the viewer as dynamic, so a build
+  // without login variables cannot prerender a "not configured" page or redirect.
+  const requestHeaders = await headers();
   const auth = getAuth();
   if (!auth) return null;
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session) return null;
   const u = session.user as typeof session.user & {
     plan?: unknown;

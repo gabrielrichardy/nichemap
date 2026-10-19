@@ -13,12 +13,13 @@ const STATE_LABEL: Record<IntegrationState, { text: string; className: string }>
 };
 
 export default async function ConfiguracoesPage({ searchParams }: { searchParams: PageSearchParams }) {
-  const target = await readTarget(searchParams, await requireViewer("/configuracoes"));
+  const viewer = await requireViewer("/configuracoes");
+  const target = await readTarget(searchParams, viewer);
   const { integrations, defaultTarget, graphVersion } = getIntegrationStatus();
   const connection = await checkInstagramConnection();
 
   return (
-    <AppShell target={target}>
+    <AppShell target={target} viewer={viewer}>
       <div className="space-y-4 pb-10">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Configurações</h1>

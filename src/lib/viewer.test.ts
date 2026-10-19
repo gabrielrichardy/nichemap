@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { getAuth } from "./auth";
-import { requireAdmin, requireViewer, targetFor, type Viewer } from "./viewer";
+import { getViewer, requireAdmin, requireViewer, targetFor, type Viewer } from "./viewer";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ headers: vi.fn(async () => new Headers()) }));
@@ -103,5 +104,14 @@ describe("requireAdmin", () => {
     signIn(null);
     await expect(requireAdmin()).rejects.toThrow("NOT_FOUND");
     expect(notFound).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("getViewer", () => {
+  it("reads the request even when login is not configured, so pages never prerender", async () => {
+    vi.mocked(getAuth).mockReturnValue(null);
+    vi.mocked(headers).mockClear();
+    expect(await getViewer()).toBeNull();
+    expect(headers).toHaveBeenCalled();
   });
 });

@@ -1,15 +1,18 @@
 import { AppShell } from "@/components/AppShell";
 import { DashboardClient } from "@/components/DashboardClient";
+import { canSeeCompetitors } from "@/lib/access";
+import { requireViewer, targetFor } from "@/lib/viewer";
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ target?: string }> }) {
+  const viewer = await requireViewer("/");
   const { target: targetParam } = await searchParams;
-  const defaultTarget = process.env.INSTAGRAM_TARGET_USERNAME || "biodev";
-  const target = targetParam || defaultTarget;
+  // Customers: their locked @. Admins: ?target or the default profile (invalid → raw value, the API answers 400).
+  const target = targetFor(viewer, targetParam) ?? targetParam ?? "";
 
   return (
-    <AppShell target={target}>
+    <AppShell target={target} viewer={viewer}>
       {/* key resets loading/error state when the searched profile changes */}
-      <DashboardClient key={target} target={target} />
+      <DashboardClient key={target} target={target} showCompetitors={canSeeCompetitors(viewer)} />
     </AppShell>
   );
 }

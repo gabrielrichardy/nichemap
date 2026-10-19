@@ -11,9 +11,10 @@ import { requireViewer } from "@/lib/viewer";
 export const metadata: Metadata = { title: "Relatórios · Nichemap" };
 
 export default async function RelatoriosPage({ searchParams }: { searchParams: PageSearchParams }) {
-  const result = await loadDashboard(searchParams, await requireViewer("/relatorios"));
+  const viewer = await requireViewer("/relatorios");
+  const result = await loadDashboard(searchParams, viewer);
   return (
-    <AppShell target={result.target}>
+    <AppShell target={result.target} viewer={viewer}>
       <Section title="Relatórios" description="Resumo do perfil pronto para imprimir ou salvar em PDF." result={result}>
         {(data) => (
           <>
