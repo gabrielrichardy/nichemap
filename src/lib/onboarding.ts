@@ -1,7 +1,7 @@
 import "server-only";
 import { isUsernameTaken, type LockResult } from "./accounts";
 import { getInstagramCredentials } from "./env";
-import { fetchProfile, GraphRequestError } from "./graph";
+import { fetchProfile, isNotBusinessError } from "./graph";
 import { resolveTarget } from "./instagram";
 import { logger } from "./logger";
 
@@ -16,8 +16,6 @@ export type LookupResult = { ok: true; profile: ProfilePreview } | { ok: false; 
 
 const IN_USE = "Este perfil já está ligado a outra conta. Fale com o suporte.";
 const UNAVAILABLE = "Serviço indisponível no momento. Tente mais tarde.";
-// Graph API code 100: business_discovery found no business/creator account with that @.
-const NOT_FOUND_CODE = 100;
 
 // Finds the public business/creator profile a customer is about to lock. The empty @ is
 // rejected here: resolveTarget() would otherwise fall back to the default profile.
@@ -46,7 +44,7 @@ export async function lookupProfile(raw: string): Promise<LookupResult> {
       },
     };
   } catch (err) {
-    if (err instanceof GraphRequestError && err.code === NOT_FOUND_CODE) {
+    if (isNotBusinessError(err)) {
       return {
         ok: false,
         message:

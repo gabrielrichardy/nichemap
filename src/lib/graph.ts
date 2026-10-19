@@ -52,17 +52,28 @@ export class GraphRequestError extends Error {
   constructor(
     message: string,
     readonly code?: number,
+    readonly subcode?: number,
   ) {
     super(message);
     this.name = "GraphRequestError";
   }
 }
 
+// Graph API code 100: business_discovery found no business/creator account with that @.
+// This is the only Graph refusal the unofficial source may fall back from.
+const NOT_BUSINESS_CODE = 100;
+
+export function isNotBusinessError(err: unknown): boolean {
+  return err instanceof GraphRequestError && err.code === NOT_BUSINESS_CODE;
+}
+
 async function graphGet<T>(path: string, fields: string, accessToken: string): Promise<T> {
   const url = `https://graph.facebook.com/${GRAPH_VERSION}/${path}?fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(accessToken)}`;
   const res = await fetch(url, { cache: "no-store" });
   const json = await res.json();
-  if (!res.ok || json.error) throw new GraphRequestError(describeGraphError(json.error, res.status), json.error?.code);
+  if (!res.ok || json.error) {
+    throw new GraphRequestError(describeGraphError(json.error, res.status), json.error?.code, json.error?.error_subcode);
+  }
   return json as T;
 }
 

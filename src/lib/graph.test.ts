@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { computeEngagementPct, describeGraphError, fetchProfile } from "./graph";
+import { computeEngagementPct, describeGraphError, fetchProfile, GraphRequestError, isNotBusinessError } from "./graph";
 
 vi.mock("server-only", () => ({}));
 afterEach(() => vi.unstubAllGlobals());
@@ -27,6 +27,25 @@ describe("fetchProfile", () => {
     const promise = fetchProfile("biodev", { accessToken: "secret-token", businessId: "123" });
     await expect(promise).rejects.toThrow(/Token do Instagram expirado/);
     await expect(promise).rejects.not.toThrow(/secret-token/);
+  });
+});
+
+describe("isNotBusinessError", () => {
+  it("is true only for the Graph not-business/not-found refusal", () => {
+    expect(isNotBusinessError(new GraphRequestError("x", 100))).toBe(true);
+    expect(isNotBusinessError(new GraphRequestError("x", 190))).toBe(false);
+    expect(isNotBusinessError(new Error("x"))).toBe(false);
+  });
+
+  it("keeps the subcode from the Graph error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ error: { code: 100, error_subcode: 2207013, message: "x" } }, { status: 400 })),
+    );
+    const err = await fetchProfile("biodev", { accessToken: "t", businessId: "123" }).catch((e) => e);
+    expect(err).toBeInstanceOf(GraphRequestError);
+    expect(err).toMatchObject({ code: 100, subcode: 2207013 });
+    expect(new GraphRequestError("x", 100, 33).subcode).toBe(33);
   });
 });
 
