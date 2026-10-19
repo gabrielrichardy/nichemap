@@ -47,11 +47,22 @@ export function describeGraphError(error: GraphError | undefined, status: number
   return error?.message || `Instagram Graph API respondeu ${status}`;
 }
 
+// Keeps the Graph error code so callers can tell "profile not found" apart from other failures.
+export class GraphRequestError extends Error {
+  constructor(
+    message: string,
+    readonly code?: number,
+  ) {
+    super(message);
+    this.name = "GraphRequestError";
+  }
+}
+
 async function graphGet<T>(path: string, fields: string, accessToken: string): Promise<T> {
   const url = `https://graph.facebook.com/${GRAPH_VERSION}/${path}?fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(accessToken)}`;
   const res = await fetch(url, { cache: "no-store" });
   const json = await res.json();
-  if (!res.ok || json.error) throw new Error(describeGraphError(json.error, res.status));
+  if (!res.ok || json.error) throw new GraphRequestError(describeGraphError(json.error, res.status), json.error?.code);
   return json as T;
 }
 
