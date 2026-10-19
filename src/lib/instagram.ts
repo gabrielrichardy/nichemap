@@ -6,6 +6,7 @@ import { instagramUsernameSchema } from "./env-schema";
 import { computeEngagementPct, fetchProfile, type RawBusinessDiscovery, type RawMedia } from "./graph";
 import { dayInBrazil, percentChange, summarizeGrowth, withToday, type SnapshotPoint } from "./growth";
 import { logger } from "./logger";
+import { computeProfileScore } from "./profileScore";
 import { getRecentSnapshots, saveSnapshot } from "./snapshots";
 import { extractThemes } from "./themes";
 import type { ContentItem, ContentTypeSlice, DashboardData, MarketProfile, Opportunity, SampleSection } from "./types";
@@ -188,15 +189,12 @@ export async function getDashboardData(
       ? [...media].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).map(toContentItem)
       : [];
 
-    const profileScore = Math.max(
-      0,
-      Math.min(
-        100,
-        Math.round(
-          engajamentoPct * 6 + Math.min(data.media_count, 30) * 0.6 + Math.min(data.followers_count / 1000, 20)
-        )
-      )
-    );
+    const profileScore = computeProfileScore({
+      engagementPct: engajamentoPct,
+      biography: data.biography,
+      media,
+      now: new Date(),
+    });
 
     const today: SnapshotPoint = {
       takenOn: dayInBrazil(new Date()),
@@ -227,8 +225,9 @@ export async function getDashboardData(
         engajamentoGrowthPct: summary?.engagementPct ?? 0,
         publicacoes: data.media_count,
         publicacoesGrowthPct: summary?.mediaPct ?? 0,
-        profileScore,
-        profileScoreLabel: profileScore >= 80 ? "Ótimo" : profileScore >= 60 ? "Bom" : profileScore >= 40 ? "Regular" : "Atenção",
+        profileScore: profileScore.score,
+        profileScoreLabel: profileScore.label,
+        profileScoreBreakdown: profileScore.breakdown,
         growthLabel: summary ? `em ${summary.days} ${summary.days === 1 ? "dia" : "dias"}` : undefined,
       },
       growth: summary?.growth ?? [],

@@ -51,7 +51,25 @@ export function buildMockData(username: string): DashboardData {
       publicacoes: 18,
       publicacoesGrowthPct: 12.5,
       profileScore: 82,
-      profileScoreLabel: "Bom",
+      profileScoreLabel: "Ótimo",
+      profileScoreBreakdown: [
+        { label: "Engajamento", points: 25, max: 25, detail: "6,8% de curtidas e comentários por seguidor (referência: 3%)" },
+        {
+          label: "Frequência",
+          points: 15,
+          max: 25,
+          detail: "7 publicações nos últimos 30 dias (referência: 12)",
+          tip: "Publique com regularidade: cerca de 3 vezes por semana. Faltaram 5 no último mês.",
+        },
+        { label: "Variedade de formatos", points: 25, max: 25, detail: "Usa Reels, carrosséis, imagens nas publicações recentes" },
+        {
+          label: "Perfil e legendas",
+          points: 17,
+          max: 25,
+          detail: "Bio preenchida · 7 de 18 publicações com legenda",
+          tip: "Coloque legenda em todas as publicações: ela ajuda a busca e o engajamento.",
+        },
+      ],
       growthLabel: "vs. 30 dias anteriores",
     },
     growth: [

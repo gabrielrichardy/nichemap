@@ -83,6 +83,7 @@ O token nunca chega ao cliente. `src/app` e `src/components` não podem importar
 Limitações conhecidas do fluxo atual:
 
 - `business_discovery` não entrega histórico nem visualizações: o crescimento vem só dos snapshots diários (sem banco ou com menos de 2 dias, o gráfico fica vazio com aviso) e `views` fica indefinido com dados reais.
+- Profile score (`src/lib/profileScore.ts`): 4 critérios de 25 pontos (engajamento vs. 3%, publicações nos últimos 30 dias vs. 12, variedade de formatos, bio + legendas). Cada critério abaixo do máximo traz uma dica; o card do score abre esse detalhamento ao clicar.
 - Sem `INSTAGRAM_COMPETITORS`, Mercado e Oportunidades usam dados de exemplo mesmo com token; `sampleSections` marca esses blocos e a UI mostra o selo “Exemplo”. Com concorrentes, ambos são reais (Oportunidades = `buildOpportunities`, score = engajamento × 10). Pessoas foi removida até haver fonte (#4).
 - Cada visita a uma página consulta a Graph API (perfil + até 10 concorrentes), sem cache. Revisar se o limite de chamadas da Meta aparecer.
 - O token vai como `access_token` na query string da Graph API (formato documentado pela Meta); não é registrado em log.
