@@ -16,7 +16,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("./auth", () => ({ getAuth: vi.fn() }));
 
-type SessionUser = { id: string; name: string; email: string; image?: string | null; plan?: string; instagramUsername?: string | null };
+type SessionUser = { id: string; name: string; email: string; image?: string | null; plan?: string; instagramUsername?: string | null; unofficialSource?: boolean };
 
 function signIn(user: SessionUser | null) {
   vi.mocked(getAuth).mockReturnValue(
@@ -46,6 +46,7 @@ const viewer = (overrides: Partial<Viewer>): Viewer => ({
   plan: "basico",
   instagramUsername: "meuperfil",
   termsAcceptedAt: null,
+  unofficialSource: false,
   ...overrides,
 });
 
@@ -113,5 +114,12 @@ describe("getViewer", () => {
     vi.mocked(headers).mockClear();
     expect(await getViewer()).toBeNull();
     expect(headers).toHaveBeenCalled();
+  });
+
+  it("reads the unofficial source flag, defaulting to false", async () => {
+    signIn({ ...customer("completo"), unofficialSource: true });
+    expect((await getViewer())?.unofficialSource).toBe(true);
+    signIn(customer("completo"));
+    expect((await getViewer())?.unofficialSource).toBe(false);
   });
 });

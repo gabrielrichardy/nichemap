@@ -1,5 +1,6 @@
 import "server-only";
 import {
+  apifyTokenSchema,
   authSecretSchema,
   databaseUrlSchema,
   httpUrlSchema,
@@ -35,6 +36,15 @@ export function getInstagramCredentials() {
     accessToken,
     businessId: parseEnv("INSTAGRAM_BUSINESS_ID", businessId, instagramBusinessIdSchema),
   };
+}
+
+// Unofficial Instagram source (Apify): off unless UNOFFICIAL_SOURCE_ENABLED is exactly "true"
+// and APIFY_TOKEN is set. Returns null otherwise.
+export function getApifyToken(): string | null {
+  if (process.env.UNOFFICIAL_SOURCE_ENABLED !== "true") return null;
+  const token = process.env.APIFY_TOKEN?.trim();
+  if (!token) return null;
+  return parseEnv("APIFY_TOKEN", token, apifyTokenSchema);
 }
 
 export function getDatabaseUrl() {

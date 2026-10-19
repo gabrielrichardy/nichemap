@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "unofficial_source" boolean DEFAULT false NOT NULL;

@@ -23,6 +23,7 @@ const viewer = (overrides: Partial<Viewer>): Viewer => ({
   plan: "basico",
   instagramUsername: "meuperfil",
   termsAcceptedAt: new Date(),
+  unofficialSource: false,
   ...overrides,
 });
 
