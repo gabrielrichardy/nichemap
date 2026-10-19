@@ -1,5 +1,7 @@
 import "server-only";
 import {
+  asaasEnvSchema,
+  asaasWebhookTokenSchema,
   authSecretSchema,
   databaseUrlSchema,
   httpUrlSchema,
@@ -57,6 +59,24 @@ export function getAuthConfig() {
     googleClientSecret,
     secret: parseEnv("BETTER_AUTH_SECRET", secret, authSecretSchema),
     baseURL: parseEnv("BETTER_AUTH_URL", baseURL, httpUrlSchema),
+  };
+}
+
+const ASAAS_BASE_URLS = {
+  sandbox: "https://api-sandbox.asaas.com/v3",
+  production: "https://api.asaas.com/v3",
+} as const;
+
+// Returns null until Asaas billing is configured (API key and webhook token set).
+export function getAsaasConfig() {
+  const apiKey = process.env.ASAAS_API_KEY?.trim();
+  const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN?.trim();
+  if (!apiKey || !webhookToken) return null;
+  const env = parseEnv("ASAAS_ENV", process.env.ASAAS_ENV?.trim() || undefined, asaasEnvSchema);
+  return {
+    apiKey,
+    webhookToken: parseEnv("ASAAS_WEBHOOK_TOKEN", webhookToken, asaasWebhookTokenSchema),
+    baseUrl: ASAAS_BASE_URLS[env],
   };
 }
 

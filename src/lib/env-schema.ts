@@ -30,6 +30,11 @@ export const authSecretSchema = z.string().min(32);
 // Brazilian phone in digits: DDD + number (10-11 digits), optionally prefixed with 55.
 export const whatsappDigitsSchema = z.string().regex(/^(55)?\d{10,11}$/);
 
+// Sent by Asaas in the asaas-access-token header of each webhook call.
+export const asaasWebhookTokenSchema = z.string().min(32).max(255).regex(/^\S+$/);
+
+export const asaasEnvSchema = z.enum(["sandbox", "production"]).default("sandbox");
+
 export const logLevelSchema = z.enum(["trace", "debug", "info", "warn", "error", "fatal", "silent"]).default("info");
 
 export function parseEnv<T>(key: string, value: unknown, schema: z.ZodType<T>): T {

@@ -21,6 +21,8 @@
 | Web mobile-first, sem Expo | Escolha do usuário | conversa, 2026-10-17 |
 | Better Auth 1.7.7 (versão exata) para login com Google | Suporta Next 16 App Router, adaptador Drizzle/PostgreSQL e Google; peers `next ^16`, `drizzle-orm ^0.45.2`. 1.7.7 era a versão estável mais recente com 2+ semanas | `npm view better-auth time peerDependencies`, Context7 `/better-auth/better-auth` (instalação, Next.js, Google, Drizzle), 2026-10-18 |
 | `.env.local.example` consolidado em `.env.example` | Um único arquivo de exemplo com banco + Instagram; `.gitignore` versiona só `.env.example` | toolkit `templates/next/.env.example` |
+| Asaas API v3: URLs `https://api-sandbox.asaas.com/v3` e `https://api.asaas.com/v3`, chave no header `access_token`, header `User-Agent` enviado (`Nichemap`) | Exigidos pelo Asaas; `User-Agent` é obrigatório para contas raiz criadas desde 13/06/2024 | docs.asaas.com `autenticação-1`, referência `criar-nova-assinatura` (OpenAPI), 2026-10-19 |
+| Assinatura criada com `billingType: "UNDEFINED"` | O enum de assinatura aceita `UNDEFINED`; para cobranças, a doc diz que com `UNDEFINED` o pagador escolhe entre as formas habilitadas ao abrir a fatura. **Não confirmado**: se, numa assinatura `UNDEFINED` paga com cartão na 1ª fatura, o Asaas cobra o cartão sozinho nos meses seguintes, e se Pix vira Pix Automático. A doc só garante cobrança automática do cartão em assinatura `CREDIT_CARD` (dados do cartão enviados na criação). Falta testar no sandbox com a chave do dono; se falhar, `createSubscription` ganha `billingType` e o formulário pergunta o meio | docs.asaas.com `criar-nova-cobranca`, `assinaturas-recorrência`, `criando-assinatura-com-cartao-de-credito`, 2026-10-19 |
 
 ## Componentes
 
