@@ -67,7 +67,7 @@ interface Resolved {
   invoiceUrl?: string;
 }
 
-// Asaas no longer has it (404): nothing to apply, and a retry would never succeed.
+// Null when Asaas no longer has it (404): a retry would never succeed.
 async function unlessGone<T>(read: Promise<T>): Promise<T | null> {
   try {
     return await read;
@@ -81,10 +81,12 @@ async function unlessGone<T>(read: Promise<T>): Promise<T | null> {
 // itself is never trusted. Null: nothing to apply.
 async function resolve(event: AsaasEvent): Promise<Resolved | null> {
   if (SUBSCRIPTION_REMOVED.has(event.event)) {
-    if (!event.subscription?.id) return null;
-    const remote = await unlessGone(getSubscription(event.subscription.id));
-    if (!remote || (!remote.deleted && remote.status === "ACTIVE")) return null;
-    return { asaasSubscriptionId: remote.id, rule: { type: "remote_deleted" } };
+    const subscriptionId = event.subscription?.id;
+    if (!subscriptionId) return null;
+    // 404: Asaas no longer has the subscription, so it is gone just like deleted: true.
+    const remote = await unlessGone(getSubscription(subscriptionId));
+    if (remote && !remote.deleted && remote.status === "ACTIVE") return null;
+    return { asaasSubscriptionId: subscriptionId, rule: { type: "remote_deleted" } };
   }
   const kind = PAYMENT_RULES[event.event];
   if (!kind || !event.payment?.id) return null;

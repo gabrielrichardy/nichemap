@@ -232,6 +232,23 @@ describe.skipIf(!url)("billing sync (PostgreSQL)", () => {
     expect(mock.deleteSubscription).not.toHaveBeenCalled();
   });
 
+  it("a subscription Asaas no longer has (404) counts as removed", async () => {
+    const { handleAsaasEvent } = await import("./billing-sync");
+    const { AsaasError } = await import("@/lib/asaas");
+    const mock = await asaas();
+    mock.getSubscription.mockRejectedValue(new AsaasError("Asaas GET /subscriptions/x failed with status 404", 404));
+    await createUser("a", { plan: "completo" });
+    await insertSubscription("a", {});
+
+    const deleted = (id: string, sub: string) => ({ id, event: "SUBSCRIPTION_DELETED", subscription: { id: sub } });
+    expect(await handleAsaasEvent(deleted("evt_1", "sub_a"), NOW)).toBe("processed");
+    expect(await readSubscription("a")).toMatchObject({ status: "canceled", periodEnd: PERIOD_END });
+    expect((await readUser("a")).plan).toBe("completo");
+    expect(await handleAsaasEvent(deleted("evt_2", "sub_other"), NOW)).toBe("ignored");
+    expect((await readEvent("evt_2")).processedAt).toEqual(NOW);
+    expect(mock.deleteSubscription).not.toHaveBeenCalled();
+  });
+
   it("a subscription event whose re-read subscription is still active is ignored", async () => {
     const { handleAsaasEvent } = await import("./billing-sync");
     const mock = await asaas();
@@ -277,20 +294,16 @@ describe.skipIf(!url)("billing sync (PostgreSQL)", () => {
     expect((await readUser("a")).plan).toBe("basico");
   });
 
-  it("a payment or subscription Asaas no longer has (404) is ignored and marked processed", async () => {
+  it("a payment Asaas no longer has (404) is ignored and marked processed", async () => {
     const { handleAsaasEvent } = await import("./billing-sync");
     const { AsaasError } = await import("@/lib/asaas");
     const mock = await asaas();
     mock.getPayment.mockRejectedValue(new AsaasError("Asaas GET /payments/pay_1 failed with status 404", 404));
-    mock.getSubscription.mockRejectedValue(new AsaasError("Asaas GET /subscriptions/sub_a failed with status 404", 404));
     await createUser("a", { plan: "completo" });
     await insertSubscription("a", {});
 
     expect(await handleAsaasEvent(paymentEvent("PAYMENT_RECEIVED", "evt_1"), NOW)).toBe("ignored");
-    const deleted = { id: "evt_2", event: "SUBSCRIPTION_DELETED", subscription: { id: "sub_a" } };
-    expect(await handleAsaasEvent(deleted, NOW)).toBe("ignored");
     expect((await readEvent("evt_1")).processedAt).toEqual(NOW);
-    expect((await readEvent("evt_2")).processedAt).toEqual(NOW);
     expect(await readSubscription("a")).toMatchObject({ status: "active" });
 
     mock.getPayment.mockRejectedValue(new AsaasError("Asaas GET /payments/pay_1 failed with status 500", 500));
