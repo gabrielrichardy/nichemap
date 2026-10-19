@@ -44,8 +44,10 @@ export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 const ACCOUNT_PAGE = "/conta";
 const PLAN_RANK: Record<PaidPlan, number> = { intermediario: 1, completo: 2 };
 
-// Locks the account's subscription row until the transaction ends.
+// Locks the account, then its subscription row, until the transaction ends. Every billing
+// path locks in this order (user, then subscription) so concurrent paths cannot deadlock.
 export async function lockSubscription(tx: Tx, userId: string): Promise<Subscription | undefined> {
+  await tx.select({ id: user.id }).from(user).where(eq(user.id, userId)).for("update");
   const [row] = await tx.select().from(subscription).where(eq(subscription.userId, userId)).for("update");
   return row;
 }

@@ -22,6 +22,7 @@ function stubFetch(response: Response) {
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("getAsaasConfig", () => {
@@ -138,6 +139,22 @@ describe("Asaas client", () => {
     );
     await expect(firstPaymentUrl("sub_123")).resolves.toBe("https://sandbox.asaas.com/i/pay_1");
     expect(fetchMock.mock.calls[0][0]).toBe("https://api-sandbox.asaas.com/v3/subscriptions/sub_123/payments");
+  });
+
+  it("aborts a request after 10 seconds and surfaces the timeout as an error", async () => {
+    const controller = new AbortController();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(controller.signal);
+    const fetchMock = vi.fn(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal!.reason))),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const promise = getPayment("pay_1");
+    controller.abort(new DOMException("The operation was aborted due to timeout", "TimeoutError"));
+    await expect(promise).rejects.toMatchObject({ name: "TimeoutError" });
+    expect(timeout).toHaveBeenCalledWith(10_000);
+    expect(fetchMock.mock.calls[0][1]?.signal).toBe(controller.signal);
   });
 
   it("throws when Asaas is not configured", async () => {

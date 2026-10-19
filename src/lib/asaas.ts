@@ -18,6 +18,8 @@ export class AsaasError extends Error {
 
 type Method = "GET" | "POST" | "PUT" | "DELETE";
 
+const REQUEST_TIMEOUT_MS = 10_000;
+
 async function request<T>(method: Method, path: string, body?: unknown): Promise<T> {
   const config = getAsaasConfig();
   if (!config) throw new Error("Asaas is not configured (ASAAS_API_KEY / ASAAS_WEBHOOK_TOKEN)");
@@ -31,6 +33,8 @@ async function request<T>(method: Method, path: string, body?: unknown): Promise
     },
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: "no-store",
+    // A hung Asaas call would otherwise hold the caller's transaction and row locks.
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!res.ok) throw new AsaasError(`Asaas ${method} ${path} failed with status ${res.status}`, res.status);
   return (await res.json()) as T;

@@ -151,6 +151,20 @@ describe.skipIf(!url)("billing (PostgreSQL)", () => {
     expect(mock.createSubscription).toHaveBeenCalledTimes(1);
   });
 
+  it("concurrent checkouts for the same account create one subscription and share its URL", async () => {
+    const { startCheckout } = await import("./billing");
+    const mock = await asaas();
+    await createUser("a");
+
+    const results = await Promise.all([startCheckout(checkoutInput("a"), NOW), startCheckout(checkoutInput("a"), NOW)]);
+    expect(results).toEqual([
+      { ok: true, url: "https://pay.example/1" },
+      { ok: true, url: "https://pay.example/1" },
+    ]);
+    expect(mock.createCustomer).toHaveBeenCalledTimes(1);
+    expect(mock.createSubscription).toHaveBeenCalledTimes(1);
+  });
+
   it("checkout while active returns already_subscribed", async () => {
     const { startCheckout } = await import("./billing");
     const mock = await asaas();
