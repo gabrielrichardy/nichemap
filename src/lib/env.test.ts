@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getAuthConfig, getDatabaseUrl, getLogLevel, getSupportLink, getSupportWhatsappUrl, isAdminEmail } from "./env";
+import {
+  getAsaasCustomerPanelUrl,
+  getAuthConfig,
+  getDatabaseUrl,
+  getLogLevel,
+  getSupportLink,
+  getSupportWhatsappUrl,
+  isAdminEmail,
+} from "./env";
 
 vi.mock("server-only", () => ({}));
 afterEach(() => vi.unstubAllEnvs());
@@ -102,5 +110,12 @@ describe("auth config", () => {
     stubAuth("s".repeat(32));
     vi.stubEnv("BETTER_AUTH_URL", "ftp://example.com");
     expect(() => getAuthConfig()).toThrow("BETTER_AUTH_URL");
+  });
+
+  it("links customers to the Asaas panel host that matches ASAAS_ENV", () => {
+    vi.stubEnv("ASAAS_ENV", undefined);
+    expect(getAsaasCustomerPanelUrl("cus_1")).toBe("https://sandbox.asaas.com/customerAccount/show/cus_1");
+    vi.stubEnv("ASAAS_ENV", "production");
+    expect(getAsaasCustomerPanelUrl("cus_1")).toBe("https://www.asaas.com/customerAccount/show/cus_1");
   });
 });

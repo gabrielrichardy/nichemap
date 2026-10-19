@@ -19,6 +19,18 @@ async function createUser(id: string, createdAt = new Date()) {
   await (await db()).insert(user).values({ id, name: id, email: `${id}@example.com`, createdAt });
 }
 
+async function createSubscription(userId: string, status: string, plan = "completo", cycle = "monthly") {
+  const { subscription } = await import("@/db/schema");
+  await (await db()).insert(subscription).values({
+    userId,
+    asaasCustomerId: `cus_${userId}`,
+    asaasSubscriptionId: `sub_${userId}`,
+    plan,
+    cycle,
+    status,
+  });
+}
+
 async function readUser(id: string) {
   const { user } = await import("@/db/schema");
   const [row] = await (await db()).select().from(user).where(eq(user.id, id));
@@ -100,18 +112,88 @@ describe.skipIf(!url)("accounts (PostgreSQL)", () => {
   });
 
   it("counts accounts by plan and signup window", async () => {
-    const { getAccountStats, setPlan } = await import("./accounts");
+    const { getAccountStats, setManualPlan } = await import("./accounts");
     const now = new Date("2026-10-18T12:00:00Z");
     await createUser("new", new Date("2026-10-15T12:00:00Z"));
     await createUser("month", new Date("2026-10-01T12:00:00Z"));
     await createUser("old", new Date("2026-08-01T12:00:00Z"));
-    await setPlan("old", "completo");
+    await setManualPlan("old", "completo", false);
 
     expect(await getAccountStats(now)).toEqual({
       total: 3,
       byPlan: { basico: 2, intermediario: 0, completo: 1 },
       newLast7: 1,
       newLast30: 2,
+      activeSubscriptions: 0,
+      complimentary: 0,
+      estimatedMonthlyRevenue: 0,
     });
+  });
+
+  it("stats count cortesias apart and divide yearly by 12", async () => {
+    const { getAccountStats, setManualPlan } = await import("./accounts");
+    const { user } = await import("@/db/schema");
+    await createUser("yearly");
+    await createSubscription("yearly", "active", "intermediario", "yearly");
+    await createUser("monthly");
+    await createSubscription("monthly", "overdue", "completo", "monthly");
+    await createUser("suspended");
+    await createSubscription("suspended", "suspended", "completo", "monthly");
+    await createUser("gift");
+    expect(await setManualPlan("gift", "completo", true)).toEqual({ ok: true });
+    // A cortesia with a paying subscription (unreachable through the lock, but excluded anyway).
+    await createUser("giftsub");
+    await createSubscription("giftsub", "active", "completo", "yearly");
+    await (await db()).update(user).set({ complimentary: true }).where(eq(user.id, "giftsub"));
+
+    const stats = await getAccountStats();
+    expect(stats.activeSubscriptions).toBe(2);
+    expect(stats.complimentary).toBe(2);
+    expect(stats.estimatedMonthlyRevenue).toBeCloseTo(599 / 12 + 99.9, 6);
+  });
+
+  it("lists each account with its billing state, or nulls without a subscription", async () => {
+    const { listAccounts } = await import("./accounts");
+    await createUser("a");
+    await createSubscription("a", "active", "intermediario", "yearly");
+    await createUser("b");
+
+    const rows = await listAccounts();
+    expect(rows.find((r) => r.id === "a")).toMatchObject({
+      billingStatus: "active",
+      cycle: "yearly",
+      asaasCustomerId: "cus_a",
+      complimentary: false,
+    });
+    expect(rows.find((r) => r.id === "b")).toMatchObject({ billingStatus: null, cycle: null, asaasCustomerId: null });
+  });
+
+  it("setManualPlan refuses while a subscription is active, pending, overdue, suspended or canceled", async () => {
+    const { setManualPlan } = await import("./accounts");
+    for (const status of ["pending", "active", "overdue", "suspended", "canceled"]) {
+      await createUser(status);
+      await createSubscription(status, status);
+      expect(await setManualPlan(status, "completo", true)).toEqual({ ok: false, reason: "subscription" });
+      const row = await readUser(status);
+      expect(row.plan).toBe("basico");
+      expect(row.complimentary).toBe(false);
+    }
+  });
+
+  it("setManualPlan allows the change once the subscription has ended", async () => {
+    const { setManualPlan } = await import("./accounts");
+    await createUser("ended");
+    await createSubscription("ended", "ended");
+    expect(await setManualPlan("ended", "completo", false)).toEqual({ ok: true });
+    expect((await readUser("ended")).plan).toBe("completo");
+  });
+
+  it("setManualPlan with basico clears complimentary", async () => {
+    const { setManualPlan } = await import("./accounts");
+    await createUser("a");
+    expect(await setManualPlan("a", "completo", true)).toEqual({ ok: true });
+    expect(await readUser("a")).toMatchObject({ plan: "completo", complimentary: true });
+    expect(await setManualPlan("a", "basico", true)).toEqual({ ok: true });
+    expect(await readUser("a")).toMatchObject({ plan: "basico", complimentary: false });
   });
 });

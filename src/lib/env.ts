@@ -80,6 +80,17 @@ export function getAsaasConfig() {
   };
 }
 
+const ASAAS_PANEL_HOSTS = {
+  sandbox: "https://sandbox.asaas.com",
+  production: "https://www.asaas.com",
+} as const;
+
+// Link to a customer in the Asaas panel, on the same host (sandbox or production) as the API.
+export function getAsaasCustomerPanelUrl(customerId: string): string {
+  const env = parseEnv("ASAAS_ENV", process.env.ASAAS_ENV?.trim() || undefined, asaasEnvSchema);
+  return `${ASAAS_PANEL_HOSTS[env]}/customerAccount/show/${encodeURIComponent(customerId)}`;
+}
+
 // ADMIN_EMAILS: comma-separated Google account emails with access to /admin.
 export function isAdminEmail(email: string | null | undefined): boolean {
   const normalized = email?.trim().toLowerCase();
