@@ -1,11 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isUsernameTaken } from "./accounts";
 import { fetchProfile, GraphRequestError } from "./graph";
 import { lockMessage, lookupProfile } from "./onboarding";
 
 vi.mock("server-only", () => ({}));
 vi.mock("./logger", () => ({ logger: { warn: vi.fn() } }));
-vi.mock("./accounts", () => ({ isUsernameTaken: vi.fn(async () => false) }));
 vi.mock("./graph", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./graph")>()),
   fetchProfile: vi.fn(),
@@ -53,15 +51,6 @@ describe("lookupProfile", () => {
     expect(await lookupProfile("biodev")).toEqual({ ok: false, message: "Serviço indisponível no momento. Tente mais tarde." });
   });
 
-  it("refuses a profile another account already locked", async () => {
-    vi.mocked(isUsernameTaken).mockResolvedValueOnce(true);
-    expect(await lookupProfile("biodev")).toEqual({
-      ok: false,
-      message: "Este perfil já está ligado a outra conta. Fale com o suporte.",
-      inUse: true,
-    });
-  });
-
   it("explains personal or missing accounts", async () => {
     vi.mocked(fetchProfile).mockRejectedValueOnce(new GraphRequestError("not found", 100));
     expect(await lookupProfile("pessoal")).toEqual({
@@ -79,7 +68,6 @@ describe("lookupProfile", () => {
 
 describe("lockMessage", () => {
   it("explains each refusal", () => {
-    expect(lockMessage({ ok: false, reason: "in_use" })).toBe("Este perfil já está ligado a outra conta. Fale com o suporte.");
     expect(lockMessage({ ok: false, reason: "already_locked" })).toBe("Sua conta já tem um perfil escolhido.");
     expect(lockMessage({ ok: false, reason: "terms_required" })).toBe(
       "Aceite os termos e a política de privacidade para continuar.",

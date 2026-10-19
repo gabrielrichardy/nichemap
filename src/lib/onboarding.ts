@@ -1,5 +1,5 @@
 import "server-only";
-import { isUsernameTaken, type LockResult } from "./accounts";
+import type { LockResult } from "./accounts";
 import { getInstagramCredentials } from "./env";
 import { fetchProfile, GraphRequestError } from "./graph";
 import { resolveTarget } from "./instagram";
@@ -12,9 +12,8 @@ export interface ProfilePreview {
   followers: number;
 }
 
-export type LookupResult = { ok: true; profile: ProfilePreview } | { ok: false; message: string; inUse?: true };
+export type LookupResult = { ok: true; profile: ProfilePreview } | { ok: false; message: string };
 
-const IN_USE = "Este perfil já está ligado a outra conta. Fale com o suporte.";
 const UNAVAILABLE = "Serviço indisponível no momento. Tente mais tarde.";
 // Graph API code 100: business_discovery found no business/creator account with that @.
 const NOT_FOUND_CODE = 100;
@@ -35,7 +34,6 @@ export async function lookupProfile(raw: string): Promise<LookupResult> {
 
   try {
     const profile = await fetchProfile(username, credentials, false);
-    if (await isUsernameTaken(username)) return { ok: false, message: IN_USE, inUse: true };
     return {
       ok: true,
       profile: {
@@ -60,7 +58,6 @@ export async function lookupProfile(raw: string): Promise<LookupResult> {
 }
 
 export function lockMessage(result: Extract<LockResult, { ok: false }>): string {
-  if (result.reason === "in_use") return IN_USE;
   if (result.reason === "already_locked") return "Sua conta já tem um perfil escolhido.";
   return "Aceite os termos e a política de privacidade para continuar.";
 }
