@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getAuthConfig, getDatabaseUrl, getLogLevel, getSupportWhatsappUrl, isAdminEmail } from "./env";
+import { getAuthConfig, getDatabaseUrl, getLogLevel, getSupportLink, getSupportWhatsappUrl, isAdminEmail } from "./env";
 
 vi.mock("server-only", () => ({}));
 afterEach(() => vi.unstubAllEnvs());
@@ -63,6 +63,7 @@ describe("support WhatsApp", () => {
     vi.stubEnv("SUPPORT_WHATSAPP", "123");
     expect(() => getSupportWhatsappUrl()).toThrow("SUPPORT_WHATSAPP");
     expect(() => getSupportWhatsappUrl()).not.toThrow("123");
+    expect(getSupportLink()).toBeNull();
   });
 });
 

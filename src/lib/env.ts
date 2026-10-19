@@ -77,3 +77,12 @@ export function getSupportWhatsappUrl(): string | null {
   const digits = parseEnv("SUPPORT_WHATSAPP", raw.replace(/\D/g, ""), whatsappDigitsSchema);
   return `https://wa.me/${digits.length <= 11 ? `55${digits}` : digits}`;
 }
+
+// For pages: an invalid number hides the link (Configurações reports it as invalid).
+export function getSupportLink(): string | null {
+  try {
+    return getSupportWhatsappUrl();
+  } catch {
+    return null;
+  }
+}

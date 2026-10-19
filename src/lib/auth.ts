@@ -17,6 +17,8 @@ function createAuth(config: NonNullable<ReturnType<typeof getAuthConfig>>) {
     socialProviders: {
       google: { clientId: config.googleClientId, clientSecret: config.googleClientSecret },
     },
+    // The app never uses Google's tokens; keep them encrypted at rest (LGPD: minimal exposure).
+    account: { encryptOAuthTokens: true },
     // Server-owned: `input: false` makes Better Auth reject these in sign-up/update-user bodies.
     user: {
       additionalFields: {

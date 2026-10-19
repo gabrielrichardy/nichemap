@@ -12,9 +12,10 @@ export interface ProfilePreview {
   followers: number;
 }
 
-export type LookupResult = { ok: true; profile: ProfilePreview } | { ok: false; message: string };
+export type LookupResult = { ok: true; profile: ProfilePreview } | { ok: false; message: string; inUse?: true };
 
 const IN_USE = "Este perfil já está ligado a outra conta. Fale com o suporte.";
+const UNAVAILABLE = "Serviço indisponível no momento. Tente mais tarde.";
 // Graph API code 100: business_discovery found no business/creator account with that @.
 const NOT_FOUND_CODE = 100;
 
@@ -30,11 +31,11 @@ export async function lookupProfile(raw: string): Promise<LookupResult> {
   } catch {
     credentials = null;
   }
-  if (!credentials) return { ok: false, message: "Serviço indisponível no momento. Tente mais tarde." };
+  if (!credentials) return { ok: false, message: UNAVAILABLE };
 
   try {
     const profile = await fetchProfile(username, credentials, false);
-    if (await isUsernameTaken(username)) return { ok: false, message: IN_USE };
+    if (await isUsernameTaken(username)) return { ok: false, message: IN_USE, inUse: true };
     return {
       ok: true,
       profile: {
@@ -52,8 +53,9 @@ export async function lookupProfile(raw: string): Promise<LookupResult> {
           "Não encontramos esse perfil como conta comercial ou de criador. Se a conta for pessoal, mude para profissional nas configurações do Instagram e tente de novo.",
       };
     }
+    // Token or quota problems are the owner's to fix: logged, never shown to customers.
     logger.warn({ target: username, error: (err as Error).message }, "Profile lookup failed");
-    return { ok: false, message: (err as Error).message };
+    return { ok: false, message: UNAVAILABLE };
   }
 }
 

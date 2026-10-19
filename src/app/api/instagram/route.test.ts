@@ -50,13 +50,21 @@ describe("GET /api/instagram", () => {
     vi.mocked(getViewer).mockResolvedValue(viewer({}));
     const res = await call("outro");
     expect(res.status).toBe(200);
-    expect(getDashboardData).toHaveBeenCalledWith("meuperfil", { includeCompetitors: false, mockOnFailure: false });
+    expect(getDashboardData).toHaveBeenCalledWith("meuperfil", {
+      includeCompetitors: false,
+      includeContent: false,
+      mockOnFailure: false,
+    });
   });
 
   it("includes competitors for the complete plan", async () => {
     vi.mocked(getViewer).mockResolvedValue(viewer({ plan: "completo" }));
     await call("outro");
-    expect(getDashboardData).toHaveBeenCalledWith("meuperfil", { includeCompetitors: true, mockOnFailure: false });
+    expect(getDashboardData).toHaveBeenCalledWith("meuperfil", {
+      includeCompetitors: true,
+      includeContent: true,
+      mockOnFailure: false,
+    });
   });
 
   it("answers 503 to customers when real data is unavailable", async () => {
@@ -71,7 +79,7 @@ describe("GET /api/instagram", () => {
     vi.mocked(getViewer).mockResolvedValue(viewer({ isAdmin: true, instagramUsername: null }));
     const res = await call("@biodev");
     expect(res.status).toBe(200);
-    expect(getDashboardData).toHaveBeenCalledWith("biodev", { includeCompetitors: true, mockOnFailure: true });
+    expect(getDashboardData).toHaveBeenCalledWith("biodev", { includeCompetitors: true, includeContent: true, mockOnFailure: true });
   });
 
   it("rejects an invalid admin target with 400 and a pt-BR message", async () => {

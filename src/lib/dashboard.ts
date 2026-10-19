@@ -1,5 +1,5 @@
 import "server-only";
-import { canSeeCompetitors } from "./access";
+import { canAccess, canSeeCompetitors } from "./access";
 import { getDashboardData, INVALID_TARGET_MESSAGE, type DashboardOptions } from "./instagram";
 import type { DashboardData } from "./types";
 import { targetFor, type Viewer } from "./viewer";
@@ -12,9 +12,14 @@ export type DashboardResult =
 
 export const UNAVAILABLE_MESSAGE = "Dados indisponíveis no momento. Tente novamente mais tarde.";
 
+// Gating is applied to the data itself, not only to pages: the API returns the same object.
 // Customers never get sample data presented as their profile; admins keep the fallback.
 export function dashboardOptionsFor(viewer: Viewer): Required<DashboardOptions> {
-  return { includeCompetitors: canSeeCompetitors(viewer), mockOnFailure: viewer.isAdmin };
+  return {
+    includeCompetitors: canSeeCompetitors(viewer),
+    includeContent: canAccess(viewer, "/conteudo"),
+    mockOnFailure: viewer.isAdmin,
+  };
 }
 
 async function firstParam(searchParams: PageSearchParams): Promise<string | undefined> {

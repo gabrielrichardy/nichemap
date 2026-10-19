@@ -2,19 +2,12 @@ import type { Metadata } from "next";
 import { Lock } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { PLAN_LABELS, requiredPlan } from "@/lib/access";
-import { getSupportWhatsappUrl } from "@/lib/env";
+import { getSupportLink } from "@/lib/env";
 import { MAIN_SECTIONS, SECONDARY_SECTIONS } from "@/lib/nav";
 import { requireViewer } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Planos · Nichemap" };
 
-function supportUrl() {
-  try {
-    return getSupportWhatsappUrl();
-  } catch {
-    return null;
-  }
-}
 
 export default async function PlanoPage({ searchParams }: { searchParams: Promise<{ secao?: string | string[] }> }) {
   const viewer = await requireViewer("/conta");
@@ -22,7 +15,7 @@ export default async function PlanoPage({ searchParams }: { searchParams: Promis
   // Only known sections are named; anything else gets the generic message.
   const section = [...MAIN_SECTIONS, ...SECONDARY_SECTIONS].find((s) => s.href === (Array.isArray(secao) ? secao[0] : secao));
   const required = section ? requiredPlan(section.href) : null;
-  const whatsapp = supportUrl();
+  const whatsapp = getSupportLink();
 
   return (
     <AppShell target={viewer.instagramUsername ?? ""} viewer={viewer}>

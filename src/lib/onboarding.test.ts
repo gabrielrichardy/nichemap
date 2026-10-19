@@ -58,6 +58,7 @@ describe("lookupProfile", () => {
     expect(await lookupProfile("biodev")).toEqual({
       ok: false,
       message: "Este perfil já está ligado a outra conta. Fale com o suporte.",
+      inUse: true,
     });
   });
 
@@ -70,9 +71,9 @@ describe("lookupProfile", () => {
     });
   });
 
-  it("passes other Graph errors through", async () => {
-    vi.mocked(fetchProfile).mockRejectedValueOnce(new GraphRequestError("Limite de chamadas atingido.", 4));
-    expect(await lookupProfile("biodev")).toEqual({ ok: false, message: "Limite de chamadas atingido." });
+  it("hides other Graph errors behind a generic message", async () => {
+    vi.mocked(fetchProfile).mockRejectedValueOnce(new GraphRequestError("Token do Instagram expirado ou inválido.", 190));
+    expect(await lookupProfile("biodev")).toEqual({ ok: false, message: "Serviço indisponível no momento. Tente mais tarde." });
   });
 });
 

@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LegalFooter } from "@/components/LegalFooter";
 import { ProfileLockForm } from "@/components/ProfileLockForm";
+import { getSupportLink } from "@/lib/env";
 import { getViewer } from "@/lib/viewer";
+
 
 export const metadata: Metadata = { title: "Seu perfil · Nichemap" };
 
@@ -20,7 +22,7 @@ export default async function PerfilPage() {
             Digite o @ da sua conta comercial ou de criador. Não pedimos senha nem acesso ao Instagram.
           </p>
         </div>
-        <ProfileLockForm />
+        <ProfileLockForm supportUrl={getSupportLink()} />
       </main>
       <LegalFooter />
     </div>

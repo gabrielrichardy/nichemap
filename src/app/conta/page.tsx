@@ -3,22 +3,15 @@ import { AppShell } from "@/components/AppShell";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 import { SignOutButton } from "@/components/SignOutButton";
 import { PLAN_LABELS } from "@/lib/access";
-import { getSupportWhatsappUrl } from "@/lib/env";
+import { getSupportLink } from "@/lib/env";
 import { requireViewer } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Minha conta · Nichemap" };
 
-function supportUrl() {
-  try {
-    return getSupportWhatsappUrl();
-  } catch {
-    return null; // invalid number: shown as invalid in Configurações
-  }
-}
 
 export default async function ContaPage() {
   const viewer = await requireViewer("/conta");
-  const whatsapp = supportUrl();
+  const whatsapp = getSupportLink();
   const rows: [string, string][] = [
     ["Nome", viewer.name],
     ["E-mail", viewer.email],

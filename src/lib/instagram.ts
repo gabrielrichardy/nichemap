@@ -138,6 +138,8 @@ function buildNote(days: number | null, sampleSections: SampleSection[]): string
 export interface DashboardOptions {
   // false: no competitor calls at all (plans without Market Radar).
   includeCompetitors?: boolean;
+  // false: no full post list (plans without the Conteúdo section).
+  includeContent?: boolean;
   // false: return null instead of sample data when real data is unavailable (customers).
   mockOnFailure?: boolean;
 }
@@ -149,7 +151,7 @@ export function getDashboardData(
 export function getDashboardData(targetUsername: string, options: DashboardOptions): Promise<DashboardData | null>;
 export async function getDashboardData(
   targetUsername: string,
-  { includeCompetitors = true, mockOnFailure = true }: DashboardOptions = {},
+  { includeCompetitors = true, includeContent = true, mockOnFailure = true }: DashboardOptions = {},
 ): Promise<DashboardData | null> {
   try {
     const credentials = getInstagramCredentials();
@@ -182,7 +184,9 @@ export async function getDashboardData(
       .sort((a, b) => (b.like_count ?? 0) - (a.like_count ?? 0))
       .slice(0, 5)
       .map(toContentItem);
-    const content = [...media].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).map(toContentItem);
+    const content = includeContent
+      ? [...media].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).map(toContentItem)
+      : [];
 
     const profileScore = Math.max(
       0,

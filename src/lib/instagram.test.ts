@@ -130,6 +130,18 @@ describe("getDashboardData with live data", () => {
     expect(data.sampleSections).toEqual([]);
   });
 
+  it("leaves the full post list out when content is not included", async () => {
+    vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "test-token");
+    vi.stubEnv("INSTAGRAM_BUSINESS_ID", "123");
+    vi.stubEnv("INSTAGRAM_COMPETITORS", "");
+    vi.stubEnv("DATABASE_URL", "");
+    stubGraph();
+
+    const data = await getDashboardData("biodev", { includeContent: false });
+    expect(data.content).toEqual([]);
+    expect(data.topContent).toHaveLength(2);
+  });
+
   it("returns null when the API fails and mock data is not allowed", async () => {
     vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "test-token");
     vi.stubEnv("INSTAGRAM_BUSINESS_ID", "123");
