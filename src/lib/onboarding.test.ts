@@ -35,6 +35,8 @@ afterEach(() => {
 
 const NOT_BUSINESS =
   "Não encontramos esse perfil como conta comercial ou de criador. Se a conta for pessoal, mude para profissional nas configurações do Instagram e tente de novo.";
+const SOURCE_DISABLED =
+  "Não conseguimos ler seu perfil como conta profissional e a fonte não oficial está desativada para sua conta. Para continuar, mude sua conta do Instagram para profissional (comercial ou criador).";
 
 describe("lookupProfile", () => {
   it("normalizes the @ and returns a preview", async () => {
@@ -80,16 +82,16 @@ describe("lookupProfile", () => {
     });
   });
 
-  it("explains personal or missing accounts", async () => {
+  it("asks personal accounts to switch when the unofficial source is not allowed", async () => {
     vi.mocked(fetchProfile).mockRejectedValueOnce(new GraphRequestError("not found", 100));
-    expect(await lookupProfile("pessoal")).toEqual({ ok: false, message: NOT_BUSINESS });
+    expect(await lookupProfile("pessoal")).toEqual({ ok: false, message: SOURCE_DISABLED });
   });
 
-  it("keeps explaining personal accounts when the unofficial source is not allowed", async () => {
+  it("reports the disabled source when the flag is on but the account is not allowed", async () => {
     vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", "true");
     vi.stubEnv("APIFY_TOKEN", "apify-token");
     vi.mocked(fetchProfile).mockRejectedValueOnce(new GraphRequestError("not found", 100));
-    expect(await lookupProfile("pessoal")).toEqual({ ok: false, message: NOT_BUSINESS });
+    expect(await lookupProfile("pessoal")).toEqual({ ok: false, message: SOURCE_DISABLED });
     expect(getApifyProfile).not.toHaveBeenCalled();
   });
 

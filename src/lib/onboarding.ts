@@ -21,6 +21,8 @@ const UNAVAILABLE = "Serviço indisponível no momento. Tente mais tarde.";
 const NOT_BUSINESS =
   "Não encontramos esse perfil como conta comercial ou de criador. Se a conta for pessoal, mude para profissional nas configurações do Instagram e tente de novo.";
 const PRIVATE = "Perfis privados não funcionam. Deixe o perfil público no Instagram e tente de novo.";
+const SOURCE_DISABLED =
+  "Não conseguimos ler seu perfil como conta profissional e a fonte não oficial está desativada para sua conta. Para continuar, mude sua conta do Instagram para profissional (comercial ou criador).";
 
 // Finds the public business/creator profile a customer is about to lock. The empty @ is
 // rejected here: resolveTarget() would otherwise fall back to the default profile.
@@ -54,9 +56,8 @@ export async function lookupProfile(raw: string, opts: { allowUnofficial?: boole
       },
     };
   } catch (err) {
-    if (err instanceof SourceDisabledError || err instanceof ProfileNotFoundError) {
-      return { ok: false, message: NOT_BUSINESS };
-    }
+    if (err instanceof SourceDisabledError) return { ok: false, message: SOURCE_DISABLED };
+    if (err instanceof ProfileNotFoundError) return { ok: false, message: NOT_BUSINESS };
     if (err instanceof PrivateProfileError) return { ok: false, message: PRIVATE };
     // Token or quota problems are the owner's to fix: logged, never shown to customers.
     logger.warn({ target: username, error: (err as Error).message }, "Profile lookup failed");
