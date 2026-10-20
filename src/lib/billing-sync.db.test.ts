@@ -132,6 +132,28 @@ describe.skipIf(!url)("billing sync (PostgreSQL)", () => {
     expect((await readSubscription("a")).periodEnd).toEqual(new Date("2026-11-19T03:00:00Z"));
   });
 
+  it("card CONFIRMED then RECEIVED for the same charge keeps the scheduled plan for the renewal", async () => {
+    const { handleAsaasEvent } = await import("./billing-sync");
+    const mock = await asaas();
+    await createUser("a", { plan: "intermediario" });
+    await insertSubscription("a", { status: "pending", plan: "intermediario", cycle: "yearly", periodEnd: null });
+
+    mock.getPayment.mockResolvedValue(payment("CONFIRMED"));
+    expect(await handleAsaasEvent(paymentEvent("PAYMENT_CONFIRMED", "evt_1"), NOW)).toBe("processed");
+    const { subscription } = await import("@/db/schema");
+    await (await db()).update(subscription).set({ scheduledPlan: "completo" }).where(eq(subscription.userId, "a"));
+
+    mock.getPayment.mockResolvedValue(payment("RECEIVED"));
+    expect(await handleAsaasEvent(paymentEvent("PAYMENT_RECEIVED", "evt_2"), NOW)).toBe("processed");
+    expect(await readSubscription("a")).toMatchObject({
+      status: "active",
+      plan: "intermediario",
+      scheduledPlan: "completo",
+      periodEnd: new Date("2027-10-19T03:00:00Z"),
+    });
+    expect((await readUser("a")).plan).toBe("intermediario");
+  });
+
   it("PAYMENT_OVERDUE whose payment now reads RECEIVED changes nothing", async () => {
     const { handleAsaasEvent } = await import("./billing-sync");
     const mock = await asaas();

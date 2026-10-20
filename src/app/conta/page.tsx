@@ -29,8 +29,9 @@ function statusLines(s: BillingSummary): string[] {
       return lines;
     }
     case "overdue":
-    case "suspended":
       return ["Pagamento pendente"];
+    case "suspended":
+      return [`Plano ${PLAN_LABELS[s.plan]} pausado por falta de pagamento`];
     case "canceled":
       return [s.periodEnd ? `Cancelada — ativa até ${fullDate(s.periodEnd)}` : "Cancelada"];
     case "ended":
@@ -46,7 +47,8 @@ function PlanValue({ viewer, billing }: { viewer: Viewer; billing: BillingSummar
   const payUrl = billing.status === "pending" || billing.status === "overdue" || billing.status === "suspended" ? billing.invoiceUrl : null;
   return (
     <span className="flex flex-col gap-1 sm:items-end">
-      <span>{PLAN_LABELS[billing.plan]}</span>
+      {/* Suspended accounts are on Básico until the open charge is paid. */}
+      <span>{PLAN_LABELS[billing.status === "suspended" ? "basico" : billing.plan]}</span>
       {statusLines(billing).map((line) => (
         <span key={line} className="text-slate-600">
           {line}

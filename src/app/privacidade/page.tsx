@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: "Política de privacidade · Nichemap
 
 export default function PrivacidadePage() {
   return (
-    <LegalPage title="Política de privacidade" updated="19/10/2026">
+    <LegalPage title="Política de privacidade" updated="20/10/2026">
       <section>
         <h2>Quem é o responsável</h2>
         <p>
@@ -68,8 +68,8 @@ export default function PrivacidadePage() {
           Você pode pedir acesso, correção, portabilidade ou exclusão dos seus dados, entre outros direitos do art. 18 da
           LGPD. Para excluir sua conta, use o botão &quot;Excluir minha conta&quot; em Minha conta ou fale com o suporte.
           A exclusão apaga seus dados pessoais e libera o perfil escolhido. Se você tiver assinatura, ela é cancelada no
-          Asaas antes da exclusão. Os dados que o Asaas guarda para cobrança e obrigações fiscais seguem a política de
-          privacidade dele.
+          Asaas antes da exclusão. Depois da exclusão, seu cadastro de cliente no Asaas (nome, e-mail e CPF ou CNPJ)
+          continua com o Asaas, pelas regras de guarda dele; o Nichemap não fica com nenhum desses dados.
         </p>
       </section>
     </LegalPage>

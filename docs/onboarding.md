@@ -168,9 +168,14 @@ Dinheiro recebido como pessoa física tem tributação própria. Converse com um
 3. Ao criar/alterar tabelas em `src/db/schema/`, rode `npm run db:generate` e revise o SQL em `drizzle/`.
 4. Aplique com `npm run db:migrate` somente no banco correto.
 
-A tabela `profile_snapshots` (migration `drizzle/0000_profile_snapshots.sql`) guarda um registro por perfil por dia. As tabelas de login `user`, `session`, `account` e `verification` (migration `drizzle/0001_auth.sql`) guardam contas, sessões, plano e @ travado.
+A tabela `profile_snapshots` (migration `drizzle/0000_profile_snapshots.sql`) guarda um registro por perfil por dia. As tabelas de login `user`, `session`, `account` e `verification` (migration `drizzle/0001_auth.sql`) guardam contas, sessões, plano e @ travado. As tabelas de cobrança `subscription` e `billing_event`, e a marca de cortesia `user.complimentary` (migration `drizzle/0002_billing.sql`), guardam assinaturas e avisos do Asaas. São três migrations no total.
 
-Banco do projeto: Neon, projeto `nichemap` (região `aws-us-east-1`), criado em 2026-10-18 com as duas migrations aplicadas.
+Banco do projeto: Neon, projeto `nichemap` (região `aws-us-east-1`), criado em 2026-10-18 com as duas primeiras migrations (0000 e 0001) aplicadas. A 0002 ainda não foi aplicada; veja o aviso abaixo.
+
+> **Atenção: aplique a 0002 no banco de produção ANTES de juntar (merge) ou publicar a cobrança.**
+> O login lê a coluna nova `user.complimentary`. Se o site novo for ao ar sem ela, **ninguém consegue entrar**, nem você.
+> A ordem é: 1) aplicar `drizzle/0002_billing.sql` no banco de produção; 2) só depois fazer o merge e o deploy.
+> Esse passo mexe no banco de produção, então só acontece com o **seu OK explícito**, e `npm run db:migrate` roda só num banco autorizado. Use o caminho de "Banco de produção (Vercel)" abaixo, ou o editor SQL da Vercel, como foi feito com a 0000 (ver `docs/setup.md`).
 
 ### Banco de produção (Vercel)
 

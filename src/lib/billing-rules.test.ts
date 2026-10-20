@@ -120,6 +120,32 @@ describe("paid", () => {
     expect(out.state).toMatchObject({ plan: "intermediario", scheduledPlan: null });
   });
 
+  it("ignores a second paid event for a charge already counted (card CONFIRMED then RECEIVED)", () => {
+    const before = state({
+      status: "active",
+      plan: "intermediario",
+      cycle: "yearly",
+      periodEnd: d("2027-11-05T00:00:00Z"),
+      scheduledPlan: "completo",
+    });
+    const out = applyBillingEvent(before, { type: "paid", dueDate: d("2026-11-05T00:00:00Z") }, now);
+    expect(out).toEqual({ state: before, cancelRemote: false });
+  });
+
+  it("applies the scheduled plan on a yearly renewal and extends periodEnd by a year", () => {
+    const out = applyBillingEvent(
+      state({ status: "active", plan: "intermediario", cycle: "yearly", periodEnd: d("2027-11-05T00:00:00Z"), scheduledPlan: "completo" }),
+      { type: "paid", dueDate: d("2027-11-05T00:00:00Z") },
+      now,
+    );
+    expect(out.state).toMatchObject({
+      status: "active",
+      plan: "completo",
+      scheduledPlan: null,
+      periodEnd: d("2028-11-05T00:00:00Z"),
+    });
+  });
+
   it("extends periodEnd but stays canceled when a late charge is paid after cancelling", () => {
     const out = applyBillingEvent(
       state({ status: "canceled", periodEnd: d("2026-11-20T00:00:00Z") }),
