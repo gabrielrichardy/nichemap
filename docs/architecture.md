@@ -22,7 +22,7 @@ Versões exatas ficam no lockfile.
 src/
   app/
     layout.tsx               raiz HTML (lang pt-BR), metadados e meta tag de verificação da Meta (META_VERIFICATION_CODE)
-    page.tsx                 Dashboard: lê ?target e monta AppShell + DashboardClient (busca /api/instagram no cliente)
+    page.tsx                 Visitante sem sessão vê a landing (Landing); logado, o Dashboard: lê ?target e monta AppShell + DashboardClient (busca /api/instagram no cliente)
     scanner, conteudo, mercado, empresas, oportunidades, relatorios/
                              páginas de seção (Server Components): loadDashboard() + Section
     configuracoes/page.tsx   estado das integrações via getIntegrationStatus()
@@ -34,6 +34,8 @@ src/
     api/instagram/route.ts   GET: valida ?target e devolve DashboardData (real ou mock)
     api/cron/snapshot/       GET diário (vercel.json): grava um snapshot por perfil acompanhado
   components/
+    Landing.tsx, LandingPlans.tsx, LandingFaq.tsx, LandingShot.tsx
+                             landing pública (visitantes): seções, planos, perguntas frequentes e telas de exemplo marcadas como "Exemplo"
     AppShell.tsx             Sidebar (menu desktop + menu celular) + Header + <main>
     Section.tsx              título, erro de perfil inválido e DataSourceBanner das páginas de seção
     ContentList, PrintButton, DataSourceBanner

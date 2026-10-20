@@ -25,6 +25,7 @@ Toda conta nova começa no Básico; o plano muda só pelo admin (sem cobrança a
 
 ## Fluxos da versão inicial
 
+0. **Conhecer o produto (visitante).** Entrada: `/` sem sessão. Resultado: landing pública com o que o produto faz, para quem é, a tabela de planos, perguntas frequentes e links para privacidade e termos. Entrar com Google leva ao painel; planos pagos são ativados pelo suporte (sem cobrança automática no site, por enquanto).
 1. **Ver o painel de um perfil.** Entrada: perfil buscado no topo da página (`?target=`, aceita `@perfil`) ou o padrão `INSTAGRAM_TARGET_USERNAME`. Ação: abrir `/`. Resultado: cabeçalho do perfil, KPIs (seguidores, engajamento médio, publicações, profile score), gráfico de crescimento, tipos de conteúdo e temas.
 2. **Identificar o conteúdo que performa.** Resultado: lista dos 5 conteúdos com mais curtidas, com tipo, data, curtidas, comentários, multiplicador sobre a média e link para o post.
 3. **Navegar pelas seções** (menu lateral no desktop, menu horizontal no celular), mantendo o perfil buscado: Profile Scanner, Conteúdo (até 25 publicações recentes), Market Radar, Empresas, Oportunidades, Relatórios (impressão/PDF) e Configurações (estado das integrações, sem mostrar valores).
