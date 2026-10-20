@@ -60,16 +60,20 @@ describe("fetchProfileWithFallback", () => {
     expect(getApifyProfile).toHaveBeenCalledWith("ana");
   });
 
-  it("throws SourceDisabledError when the account is not allowed", async () => {
+  it("rethrows the original not-business error when the account is not allowed", async () => {
     flagOn();
     vi.mocked(fetchProfile).mockRejectedValue(notBusiness);
-    await expect(fetchProfileWithFallback("ana", credentials, { allowUnofficial: false })).rejects.toBeInstanceOf(
-      SourceDisabledError,
-    );
+    await expect(fetchProfileWithFallback("ana", credentials, { allowUnofficial: false })).rejects.toBe(notBusiness);
     expect(getApifyProfile).not.toHaveBeenCalled();
   });
 
-  it("throws SourceDisabledError when the flag is off", async () => {
+  it("rethrows the original not-business error when the flag is off for a non-opted account", async () => {
+    vi.mocked(fetchProfile).mockRejectedValue(notBusiness);
+    await expect(fetchProfileWithFallback("ana", credentials, { allowUnofficial: false })).rejects.toBe(notBusiness);
+    expect(getApifyProfile).not.toHaveBeenCalled();
+  });
+
+  it("throws SourceDisabledError for an allowed account while the flag is off", async () => {
     vi.mocked(fetchProfile).mockRejectedValue(notBusiness);
     await expect(fetchProfileWithFallback("ana", credentials, { allowUnofficial: true })).rejects.toBeInstanceOf(
       SourceDisabledError,

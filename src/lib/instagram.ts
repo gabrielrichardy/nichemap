@@ -127,9 +127,12 @@ export function buildOpportunities(
 }
 
 function buildNote(source: ProfileSource, days: number | null, sampleSections: SampleSection[]): string {
+  const period = `${days} ${days === 1 ? "dia" : "dias"}`;
   const history =
     days !== null
-      ? `Crescimento real dos últimos ${days} ${days === 1 ? "dia" : "dias"}.`
+      ? source === "unofficial"
+        ? `Crescimento dos últimos ${period}.`
+        : `Crescimento real dos últimos ${period}.`
       : isDatabaseConfigured()
         ? "Histórico de crescimento em coleta: o gráfico aparece a partir do segundo dia."
         : "Sem banco configurado, ainda não há histórico de crescimento.";

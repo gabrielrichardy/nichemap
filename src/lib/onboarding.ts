@@ -4,6 +4,7 @@ import { PrivateProfileError, ProfileNotFoundError } from "./apify";
 import { getInstagramCredentials } from "./env";
 import { resolveTarget } from "./instagram";
 import { logger } from "./logger";
+import { isNotBusinessError } from "./graph";
 import { fetchProfileWithFallback, SourceDisabledError, type ProfileSource } from "./profile-source";
 
 export interface ProfilePreview {
@@ -40,11 +41,12 @@ export async function lookupProfile(raw: string, opts: { allowUnofficial?: boole
   if (!credentials) return { ok: false, message: UNAVAILABLE };
 
   try {
+    // Checked before any lookup, so a taken @ never spends an unofficial (Apify) run.
+    if (await isUsernameTaken(username)) return { ok: false, message: IN_USE, inUse: true };
     const { profile, source } = await fetchProfileWithFallback(username, credentials, {
       allowUnofficial: opts.allowUnofficial ?? false,
       withMedia: false,
     });
-    if (await isUsernameTaken(username)) return { ok: false, message: IN_USE, inUse: true };
     return {
       ok: true,
       profile: {
@@ -57,7 +59,7 @@ export async function lookupProfile(raw: string, opts: { allowUnofficial?: boole
     };
   } catch (err) {
     if (err instanceof SourceDisabledError) return { ok: false, message: SOURCE_DISABLED };
-    if (err instanceof ProfileNotFoundError) return { ok: false, message: NOT_BUSINESS };
+    if (isNotBusinessError(err) || err instanceof ProfileNotFoundError) return { ok: false, message: NOT_BUSINESS };
     if (err instanceof PrivateProfileError) return { ok: false, message: PRIVATE };
     // Token or quota problems are the owner's to fix: logged, never shown to customers.
     logger.warn({ target: username, error: (err as Error).message }, "Profile lookup failed");

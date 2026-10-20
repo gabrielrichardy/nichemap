@@ -17,6 +17,7 @@ export class SourceDisabledError extends Error {
 }
 
 // Official Graph first. Only its "not business" refusal may fall back to Apify, and only when allowed.
+// Accounts not allowed get the original Graph error, so non-opted customers see the same copy as before.
 export async function fetchProfileWithFallback(
   username: string,
   credentials: GraphCredentials,
@@ -25,8 +26,8 @@ export async function fetchProfileWithFallback(
   try {
     return { profile: await fetchProfile(username, credentials, opts.withMedia ?? true), source: "live" };
   } catch (err) {
-    if (!isNotBusinessError(err)) throw err;
-    if (!opts.allowUnofficial || getApifyToken() === null) throw new SourceDisabledError();
+    if (!isNotBusinessError(err) || !opts.allowUnofficial) throw err;
+    if (getApifyToken() === null) throw new SourceDisabledError();
   }
   try {
     return { profile: await getApifyProfile(username), source: "unofficial" };

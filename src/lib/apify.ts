@@ -69,8 +69,14 @@ function toRaw(item: z.infer<typeof itemSchema>): RawBusinessDiscovery {
   };
 }
 
+// Outcome of a successful Apify call. Negative answers are data, so they can be cached too.
+export type ApifyOutcome =
+  | { ok: true; profile: RawBusinessDiscovery }
+  | { ok: false; reason: "private" | "not_found" | "malformed" };
+
 // Uncached call. `username` must already be validated. The token goes only in the header.
-export async function fetchApifyProfile(username: string, token: string): Promise<RawBusinessDiscovery> {
+// HTTP and transport errors throw; the answer itself (private, not found, malformed) is returned.
+export async function fetchApifyProfile(username: string, token: string): Promise<ApifyOutcome> {
   const res = await fetch(ENDPOINT, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -82,19 +88,19 @@ export async function fetchApifyProfile(username: string, token: string): Promis
     throw new Error(`Apify respondeu ${res.status}`);
   }
   const items = z.array(z.unknown()).safeParse(await res.json());
-  if (items.success && items.data.length === 0) throw new ProfileNotFoundError();
+  if (items.success && items.data.length === 0) return { ok: false, reason: "not_found" };
   const item = items.success ? itemSchema.safeParse(items.data[0]) : null;
   if (!item?.success) {
     logger.warn({ target: username, status: res.status }, "Apify profile response malformed");
-    throw new Error("Resposta inesperada do Apify.");
+    return { ok: false, reason: "malformed" };
   }
-  if (item.data.private) throw new PrivateProfileError();
-  return toRaw(item.data);
+  if (item.data.private) return { ok: false, reason: "private" };
+  return { ok: true, profile: toRaw(item.data) };
 }
 
-// The token is read inside so it never becomes part of the cache key. Thrown errors are not cached.
+// The token is read inside so it never becomes part of the cache key. Thrown (transport) errors are not cached.
 const cachedProfile = unstable_cache(
-  async (username: string) => {
+  async (username: string): Promise<ApifyOutcome> => {
     const token = getApifyToken();
     if (!token) throw new Error("Fonte não oficial desligada.");
     return fetchApifyProfile(username, token);
@@ -103,7 +109,12 @@ const cachedProfile = unstable_cache(
   { revalidate: CACHE_SECONDS },
 );
 
+// Negative outcomes are cached for the same 6 h and turned into errors here, outside the cache.
 export async function getApifyProfile(username: string): Promise<RawBusinessDiscovery> {
   if (!getApifyToken()) throw new Error("Fonte não oficial desligada.");
-  return cachedProfile(username);
+  const outcome = await cachedProfile(username);
+  if (outcome.ok) return outcome.profile;
+  if (outcome.reason === "private") throw new PrivateProfileError();
+  if (outcome.reason === "not_found") throw new ProfileNotFoundError();
+  throw new Error("Resposta inesperada do Apify.");
 }

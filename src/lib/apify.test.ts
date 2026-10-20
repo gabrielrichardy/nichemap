@@ -52,7 +52,9 @@ describe("fetchApifyProfile", () => {
 
   it("maps the Apify item to the business discovery shape", async () => {
     stubFetch([item]);
-    const profile = await fetchApifyProfile("pessoal", "tok");
+    const outcome = await fetchApifyProfile("pessoal", "tok");
+    if (!outcome.ok) throw new Error(`expected a profile, got ${outcome.reason}`);
+    const profile = outcome.profile;
     expect(profile).toMatchObject({
       username: "pessoal",
       name: "Ana",
@@ -73,14 +75,14 @@ describe("fetchApifyProfile", () => {
     });
   });
 
-  it("rejects private profiles", async () => {
+  it("returns private profiles as a negative outcome", async () => {
     stubFetch([{ ...item, private: true }]);
-    await expect(fetchApifyProfile("pessoal", "tok")).rejects.toBeInstanceOf(PrivateProfileError);
+    expect(await fetchApifyProfile("pessoal", "tok")).toEqual({ ok: false, reason: "private" });
   });
 
-  it("rejects when no profile comes back", async () => {
+  it("returns an empty answer as a not-found outcome", async () => {
     stubFetch([]);
-    await expect(fetchApifyProfile("pessoal", "tok")).rejects.toBeInstanceOf(ProfileNotFoundError);
+    expect(await fetchApifyProfile("pessoal", "tok")).toEqual({ ok: false, reason: "not_found" });
   });
 
   it("reports the HTTP status without the token", async () => {
@@ -90,9 +92,9 @@ describe("fetchApifyProfile", () => {
     await expect(promise).rejects.not.toThrow(/tok-secret/);
   });
 
-  it("rejects malformed items", async () => {
+  it("returns malformed items as a negative outcome", async () => {
     stubFetch([{ foo: 1 }]);
-    await expect(fetchApifyProfile("pessoal", "tok")).rejects.toThrow();
+    expect(await fetchApifyProfile("pessoal", "tok")).toEqual({ ok: false, reason: "malformed" });
   });
 });
 
@@ -111,5 +113,26 @@ describe("getApifyProfile", () => {
     vi.stubEnv("APIFY_TOKEN", "apify_api_test");
     await expect(getApifyProfile("pessoal")).resolves.toMatchObject({ username: "pessoal" });
     expect(new Headers(fetchMock.mock.calls[0][1]?.headers).get("Authorization")).toBe("Bearer apify_api_test");
+  });
+
+  it("throws PrivateProfileError for a private profile", async () => {
+    stubFetch([{ ...item, private: true }]);
+    vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", "true");
+    vi.stubEnv("APIFY_TOKEN", "apify_api_test");
+    await expect(getApifyProfile("pessoal")).rejects.toBeInstanceOf(PrivateProfileError);
+  });
+
+  it("throws ProfileNotFoundError when Apify returns nothing", async () => {
+    stubFetch([]);
+    vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", "true");
+    vi.stubEnv("APIFY_TOKEN", "apify_api_test");
+    await expect(getApifyProfile("pessoal")).rejects.toBeInstanceOf(ProfileNotFoundError);
+  });
+
+  it("lets HTTP errors through as thrown errors", async () => {
+    stubFetch({ error: { message: "payment required" } }, 402);
+    vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", "true");
+    vi.stubEnv("APIFY_TOKEN", "apify_api_test");
+    await expect(getApifyProfile("pessoal")).rejects.toThrow(/402/);
   });
 });

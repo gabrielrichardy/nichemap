@@ -82,16 +82,35 @@ describe("lookupProfile", () => {
     });
   });
 
-  it("asks personal accounts to switch when the unofficial source is not allowed", async () => {
+  it("shows the original not-business copy when the unofficial source is off for a non-opted account", async () => {
     vi.mocked(fetchProfile).mockRejectedValueOnce(new GraphRequestError("not found", 100));
-    expect(await lookupProfile("pessoal")).toEqual({ ok: false, message: SOURCE_DISABLED });
+    expect(await lookupProfile("pessoal")).toEqual({ ok: false, message: NOT_BUSINESS });
   });
 
-  it("reports the disabled source when the flag is on but the account is not allowed", async () => {
+  it("shows the original not-business copy when the flag is on but the account is not allowed", async () => {
     vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", "true");
     vi.stubEnv("APIFY_TOKEN", "apify-token");
     vi.mocked(fetchProfile).mockRejectedValueOnce(new GraphRequestError("not found", 100));
-    expect(await lookupProfile("pessoal")).toEqual({ ok: false, message: SOURCE_DISABLED });
+    expect(await lookupProfile("pessoal")).toEqual({ ok: false, message: NOT_BUSINESS });
+    expect(getApifyProfile).not.toHaveBeenCalled();
+  });
+
+  it("reports the disabled source for an allowed account while the source is off", async () => {
+    vi.mocked(fetchProfile).mockRejectedValueOnce(new GraphRequestError("not found", 100));
+    expect(await lookupProfile("pessoal", { allowUnofficial: true })).toEqual({ ok: false, message: SOURCE_DISABLED });
+    expect(getApifyProfile).not.toHaveBeenCalled();
+  });
+
+  it("does not spend an unofficial run on a @ another account already locked", async () => {
+    vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", "true");
+    vi.stubEnv("APIFY_TOKEN", "apify-token");
+    vi.mocked(isUsernameTaken).mockResolvedValueOnce(true);
+    expect(await lookupProfile("pessoal", { allowUnofficial: true })).toEqual({
+      ok: false,
+      message: "Este perfil já está ligado a outra conta. Fale com o suporte.",
+      inUse: true,
+    });
+    expect(fetchProfile).not.toHaveBeenCalled();
     expect(getApifyProfile).not.toHaveBeenCalled();
   });
 

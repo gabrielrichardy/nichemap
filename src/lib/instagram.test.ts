@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { listLockedUsernames, listUnofficialUsernames } from "./accounts";
 import { getApifyProfile } from "./apify";
 import { collectDailySnapshots, getDashboardData, targetUsernameSchema } from "./instagram";
-import { saveSnapshot } from "./snapshots";
+import { getRecentSnapshots, saveSnapshot } from "./snapshots";
 
 vi.mock("server-only", () => ({}));
 vi.mock("./logger", () => ({ logger: { warn: vi.fn() } }));
@@ -177,7 +177,26 @@ describe("getDashboardData with live data", () => {
     expect(getApifyProfile).toHaveBeenCalledWith("broken");
   });
 
-  it("reports not_business when the unofficial source is not allowed for the account", async () => {
+  it("words the growth note without 'real' for unofficial data", async () => {
+    vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "test-token");
+    vi.stubEnv("INSTAGRAM_BUSINESS_ID", "123");
+    vi.stubEnv("INSTAGRAM_COMPETITORS", "");
+    vi.stubEnv("DATABASE_URL", "postgres://app:pw@localhost:5432/app");
+    vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", "true");
+    vi.stubEnv("APIFY_TOKEN", "apify-token");
+    vi.mocked(getRecentSnapshots).mockResolvedValueOnce(
+      new Map([["broken", [{ takenOn: "2026-10-01", followers: 700, mediaCount: 1, engagementPct: 1 }]]]),
+    );
+    stubGraph();
+    vi.mocked(getApifyProfile).mockResolvedValueOnce(profile("broken", 800).business_discovery as never);
+
+    const data = await getDashboardData("broken", { allowUnofficial: true, mockOnFailure: false });
+    if ("failure" in data) throw new Error(`expected data, got ${data.failure}`);
+    expect(data.note).toMatch(/ Crescimento dos últimos \d+ dias\. /);
+    expect(data.note).not.toContain("Crescimento real");
+  });
+
+  it("keeps the original unavailable result for a non-opted account, even with the source on", async () => {
     vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "test-token");
     vi.stubEnv("INSTAGRAM_BUSINESS_ID", "123");
     vi.stubEnv("INSTAGRAM_COMPETITORS", "");
@@ -185,6 +204,16 @@ describe("getDashboardData with live data", () => {
     vi.stubEnv("APIFY_TOKEN", "apify-token");
     stubGraph();
     const result = await getDashboardData("broken", { allowUnofficial: false, mockOnFailure: false });
+    expect(result).toEqual({ failure: "unavailable" });
+    expect(getApifyProfile).not.toHaveBeenCalled();
+  });
+
+  it("reports not_business for an allowed account while the source is off", async () => {
+    vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "test-token");
+    vi.stubEnv("INSTAGRAM_BUSINESS_ID", "123");
+    vi.stubEnv("INSTAGRAM_COMPETITORS", "");
+    stubGraph();
+    const result = await getDashboardData("broken", { allowUnofficial: true, mockOnFailure: false });
     expect(result).toEqual({ failure: "not_business" });
     expect(getApifyProfile).not.toHaveBeenCalled();
   });
