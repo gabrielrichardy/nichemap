@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isUsernameTaken } from "./accounts";
 import { getApifyProfile, PrivateProfileError, ProfileNotFoundError } from "./apify";
 import { fetchProfile, GraphRequestError } from "./graph";
 import { lockMessage, lookupProfile } from "./onboarding";
@@ -7,7 +6,6 @@ import { lockMessage, lookupProfile } from "./onboarding";
 vi.mock("server-only", () => ({}));
 vi.mock("./logger", () => ({ logger: { warn: vi.fn() } }));
 vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
-vi.mock("./accounts", () => ({ isUsernameTaken: vi.fn(async () => false) }));
 vi.mock("./apify", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./apify")>()),
   getApifyProfile: vi.fn(),
@@ -73,15 +71,6 @@ describe("lookupProfile", () => {
     expect(await lookupProfile("biodev")).toEqual({ ok: false, message: "Serviço indisponível no momento. Tente mais tarde." });
   });
 
-  it("refuses a profile another account already locked", async () => {
-    vi.mocked(isUsernameTaken).mockResolvedValueOnce(true);
-    expect(await lookupProfile("biodev")).toEqual({
-      ok: false,
-      message: "Este perfil já está ligado a outra conta. Fale com o suporte.",
-      inUse: true,
-    });
-  });
-
   it("shows the original not-business copy when the unofficial source is off for a non-opted account", async () => {
     vi.mocked(fetchProfile).mockRejectedValueOnce(new GraphRequestError("not found", 100));
     expect(await lookupProfile("pessoal")).toEqual({ ok: false, message: NOT_BUSINESS });
@@ -98,19 +87,6 @@ describe("lookupProfile", () => {
   it("reports the disabled source for an allowed account while the source is off", async () => {
     vi.mocked(fetchProfile).mockRejectedValueOnce(new GraphRequestError("not found", 100));
     expect(await lookupProfile("pessoal", { allowUnofficial: true })).toEqual({ ok: false, message: SOURCE_DISABLED });
-    expect(getApifyProfile).not.toHaveBeenCalled();
-  });
-
-  it("does not spend an unofficial run on a @ another account already locked", async () => {
-    vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", "true");
-    vi.stubEnv("APIFY_TOKEN", "apify-token");
-    vi.mocked(isUsernameTaken).mockResolvedValueOnce(true);
-    expect(await lookupProfile("pessoal", { allowUnofficial: true })).toEqual({
-      ok: false,
-      message: "Este perfil já está ligado a outra conta. Fale com o suporte.",
-      inUse: true,
-    });
-    expect(fetchProfile).not.toHaveBeenCalled();
     expect(getApifyProfile).not.toHaveBeenCalled();
   });
 
@@ -159,7 +135,6 @@ describe("lookupProfile", () => {
 
 describe("lockMessage", () => {
   it("explains each refusal", () => {
-    expect(lockMessage({ ok: false, reason: "in_use" })).toBe("Este perfil já está ligado a outra conta. Fale com o suporte.");
     expect(lockMessage({ ok: false, reason: "already_locked" })).toBe("Sua conta já tem um perfil escolhido.");
     expect(lockMessage({ ok: false, reason: "terms_required" })).toBe(
       "Aceite os termos e a política de privacidade para continuar.",

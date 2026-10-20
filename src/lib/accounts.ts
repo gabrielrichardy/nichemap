@@ -4,7 +4,7 @@ import { getDb } from "@/db";
 import { user } from "@/db/schema";
 import { isPlan, PLANS, type Plan } from "./access";
 
-export type LockResult = { ok: true } | { ok: false; reason: "in_use" | "already_locked" | "terms_required" };
+export type LockResult = { ok: true } | { ok: false; reason: "already_locked" | "terms_required" };
 
 export interface AccountRow {
   id: string;
@@ -24,33 +24,17 @@ export interface AccountStats {
   newLast30: number;
 }
 
-// Drizzle wraps pg errors, so the SQLSTATE may sit on the error or on its cause.
-export function isUniqueViolation(error: unknown): boolean {
-  const code = (e: unknown) => (typeof e === "object" && e !== null ? (e as { code?: unknown }).code : undefined);
-  return code(error) === "23505" || (error instanceof Error && code(error.cause) === "23505");
-}
-
 // `username` must already be normalized by resolveTarget(). Only an account without a
-// profile can lock one, and the unique index settles two accounts racing for the same @.
+// profile can lock one; several accounts may share the same @.
 export async function lockProfile(userId: string, username: string, acceptedTerms: boolean): Promise<LockResult> {
   if (!acceptedTerms) return { ok: false, reason: "terms_required" };
   const db = getDb();
-  try {
-    const rows = await db
-      .update(user)
-      .set({ instagramUsername: username, termsAcceptedAt: new Date() })
-      .where(and(eq(user.id, userId), isNull(user.instagramUsername)))
-      .returning({ id: user.id });
-    return rows.length ? { ok: true } : { ok: false, reason: "already_locked" };
-  } catch (err) {
-    if (isUniqueViolation(err)) return { ok: false, reason: "in_use" };
-    throw err;
-  }
-}
-
-export async function isUsernameTaken(username: string): Promise<boolean> {
-  const rows = await getDb().select({ id: user.id }).from(user).where(eq(user.instagramUsername, username)).limit(1);
-  return rows.length > 0;
+  const rows = await db
+    .update(user)
+    .set({ instagramUsername: username, termsAcceptedAt: new Date() })
+    .where(and(eq(user.id, userId), isNull(user.instagramUsername)))
+    .returning({ id: user.id });
+  return rows.length ? { ok: true } : { ok: false, reason: "already_locked" };
 }
 
 export async function unlockProfile(userId: string): Promise<void> {
@@ -118,10 +102,10 @@ export async function getAccountStats(now = new Date()): Promise<AccountStats> {
   return { total, byPlan, newLast7, newLast30 };
 }
 
-// Profiles customers locked: tracked by the daily snapshot job.
+// Profiles customers locked, once each even when shared: tracked by the daily snapshot job.
 export async function listLockedUsernames(): Promise<string[]> {
   const rows = await getDb()
-    .select({ username: user.instagramUsername })
+    .selectDistinct({ username: user.instagramUsername })
     .from(user)
     .where(isNotNull(user.instagramUsername));
   return rows.flatMap((r) => (r.username ? [r.username] : []));

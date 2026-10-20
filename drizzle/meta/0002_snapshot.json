@@ -1,5 +1,5 @@
 {
-  "id": "0e14b043-800f-4115-baa9-921ef5a40235",
+  "id": "e6b1cf51-748c-4008-bd60-faf4c6521e62",
   "prevId": "9d1f16fb-0d75-4447-8cda-9e120367a025",
   "version": "7",
   "dialect": "postgresql",
@@ -379,13 +379,6 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
-        },
-        "unofficial_source": {
-          "name": "unofficial_source",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         }
       },
       "indexes": {},
@@ -397,13 +390,6 @@
           "nullsNotDistinct": false,
           "columns": [
             "email"
-          ]
-        },
-        "user_instagram_username_unique": {
-          "name": "user_instagram_username_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "instagram_username"
           ]
         }
       },

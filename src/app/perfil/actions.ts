@@ -8,12 +8,10 @@ import { getViewer } from "@/lib/viewer";
 export interface PreviewState {
   preview?: ProfilePreview;
   error?: string;
-  inUse?: boolean;
 }
 
 export interface ConfirmState {
   error?: string;
-  inUse?: boolean;
 }
 
 // Only an account still choosing its profile may look profiles up (admins never lock one).
@@ -29,7 +27,7 @@ export async function previewProfile(_: PreviewState, formData: FormData): Promi
   const result = await lookupProfile(String(formData.get("username") ?? ""), {
     allowUnofficial: viewer.unofficialSource,
   });
-  return result.ok ? { preview: result.profile } : { error: result.message, inUse: result.inUse };
+  return result.ok ? { preview: result.profile } : { error: result.message };
 }
 
 // Looks the profile up again so a stale or edited form cannot lock an invalid @.
@@ -38,8 +36,8 @@ export async function confirmProfile(_: ConfirmState, formData: FormData): Promi
   const lookup = await lookupProfile(String(formData.get("username") ?? ""), {
     allowUnofficial: viewer.unofficialSource,
   });
-  if (!lookup.ok) return { error: lookup.message, inUse: lookup.inUse };
+  if (!lookup.ok) return { error: lookup.message };
   const result = await lockProfile(viewer.userId, lookup.profile.username, formData.get("terms") === "on");
-  if (!result.ok) return { error: lockMessage(result), inUse: result.reason === "in_use" };
+  if (!result.ok) return { error: lockMessage(result) };
   redirect("/");
 }

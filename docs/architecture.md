@@ -117,8 +117,8 @@ Limitações conhecidas do fluxo atual:
 - `npm run db:generate` gera SQL em `drizzle/` sem conexão; revise o SQL. `npm run db:migrate` usa `DATABASE_URL_UNPOOLED` ou `DATABASE_URL` e só deve rodar contra um banco autorizado.
 - Pool: `max: 5`, timeout de conexão 5 s, ocioso 30 s; criado na primeira chamada a `getDb()`, então build e testes não precisam de banco.
 - `profile_snapshots` (`drizzle/0000_profile_snapshots.sql`): `username`, `taken_on` (dia no fuso de Brasília), `followers`, `media_count`, `engagement_pct`; índice único (`username`, `taken_on`) usado pelo upsert diário e pelas consultas por período.
-- `user`, `session`, `account`, `verification` (`drizzle/0001_auth.sql`): tabelas do Better Auth; `user` tem `plan` (padrão `basico`), `instagram_username` (único), `terms_accepted_at`, `last_seen_at` (último login). Sessões e contas Google apagam em cascata com o usuário.
-- `user.unofficial_source` (`drizzle/0002_aromatic_thunderball.sql`, `boolean not null default false`): liberação da fonte não oficial por conta. Migration gerada, ainda não aplicada sem autorização.
+- `user`, `session`, `account`, `verification` (`drizzle/0001_auth.sql`): tabelas do Better Auth; `user` tem `plan` (padrão `basico`), `instagram_username` (sem unicidade desde `drizzle/0002`: várias contas podem travar o mesmo @; a coleta diária grava cada @ uma vez), `terms_accepted_at`, `last_seen_at` (último login). Sessões e contas Google apagam em cascata com o usuário.
+- `user.unofficial_source` (`drizzle/0003_clever_overlord.sql`, `boolean not null default false`): liberação da fonte não oficial por conta. Migration gerada, ainda não aplicada sem autorização.
 - Coleta: Vercel Cron chama `/api/cron/snapshot` às 11:00 UTC com `Authorization: Bearer $CRON_SECRET`; grava o perfil padrão, os concorrentes e os perfis travados pelos clientes. Só grava dados reais (exige token).
 - Leitura: `getDashboardData` busca os últimos 30 dias; se o banco falhar, o painel segue sem histórico e registra `warn` no log.
 

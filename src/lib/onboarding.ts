@@ -1,5 +1,5 @@
 import "server-only";
-import { isUsernameTaken, type LockResult } from "./accounts";
+import type { LockResult } from "./accounts";
 import { PrivateProfileError, ProfileNotFoundError } from "./apify";
 import { getInstagramCredentials } from "./env";
 import { resolveTarget } from "./instagram";
@@ -15,9 +15,8 @@ export interface ProfilePreview {
   source: ProfileSource;
 }
 
-export type LookupResult = { ok: true; profile: ProfilePreview } | { ok: false; message: string; inUse?: true };
+export type LookupResult = { ok: true; profile: ProfilePreview } | { ok: false; message: string };
 
-const IN_USE = "Este perfil já está ligado a outra conta. Fale com o suporte.";
 const UNAVAILABLE = "Serviço indisponível no momento. Tente mais tarde.";
 const NOT_BUSINESS =
   "Não encontramos esse perfil como conta comercial ou de criador. Se a conta for pessoal, mude para profissional nas configurações do Instagram e tente de novo.";
@@ -41,8 +40,6 @@ export async function lookupProfile(raw: string, opts: { allowUnofficial?: boole
   if (!credentials) return { ok: false, message: UNAVAILABLE };
 
   try {
-    // Checked before any lookup, so a taken @ never spends an unofficial (Apify) run.
-    if (await isUsernameTaken(username)) return { ok: false, message: IN_USE, inUse: true };
     const { profile, source } = await fetchProfileWithFallback(username, credentials, {
       allowUnofficial: opts.allowUnofficial ?? false,
       withMedia: false,
@@ -68,7 +65,6 @@ export async function lookupProfile(raw: string, opts: { allowUnofficial?: boole
 }
 
 export function lockMessage(result: Extract<LockResult, { ok: false }>): string {
-  if (result.reason === "in_use") return IN_USE;
   if (result.reason === "already_locked") return "Sua conta já tem um perfil escolhido.";
   return "Aceite os termos e a política de privacidade para continuar.";
 }

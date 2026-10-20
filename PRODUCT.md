@@ -11,7 +11,7 @@ O Nichemap reúne essas informações num painel único, pensado para ser consul
 ## Público e papéis
 
 - **Social media de empresas** e **pessoas que gerenciam a própria presença** e querem acompanhar tudo pelo celular.
-- **Cliente**: entra com o Google, trava um único perfil do Instagram (escolha definitiva) e vê só esse perfil, conforme o plano.
+- **Cliente**: entra com o Google, trava um único perfil do Instagram (escolha definitiva) e vê só esse perfil, conforme o plano. Várias contas podem travar o mesmo @ (decisão do dono, 2026-10-19), por exemplo a equipe de uma marca.
 - **Admin** (e-mails em `ADMIN_EMAILS`): vê todas as contas em `/admin`, muda planos, destrava perfis e analisa qualquer perfil.
 
 | Seção | Básico | Intermediário | Completo |
