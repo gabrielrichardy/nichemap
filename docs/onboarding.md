@@ -41,6 +41,8 @@ Copie `.env.example` para `.env.local` (ignorado pelo Git) e preencha só o que 
 | `ASAAS_API_KEY` | Chave de API do Asaas (sandbox ou produção, conforme `ASAAS_ENV`); só no servidor |
 | `ASAAS_WEBHOOK_TOKEN` | Token que o Asaas envia no aviso de cada evento; 32 a 255 caracteres, sem espaços |
 | `ASAAS_ENV` | `sandbox` (teste, padrão) ou `production` |
+| `UNOFFICIAL_SOURCE_ENABLED` | Chave geral da fonte não oficial. Só vale `true` exato; qualquer outro valor deixa a fonte desligada |
+| `APIFY_TOKEN` | Token da conta Apify (somente no servidor). Sem ele a fonte fica desligada |
 
 Em produção, as mesmas variáveis ficam na Vercel (Settings > Environment Variables).
 
@@ -160,6 +162,19 @@ A verificação diária (todo dia às 09:00 de Brasília) cuida só dos prazos: 
 ### 10. Imposto de renda
 
 Dinheiro recebido como pessoa física tem tributação própria. Converse com um contador antes de começar a vender. Este texto não é orientação fiscal.
+## Fonte não oficial (Apify): teste opcional
+
+Serve para contas **pessoais públicas**, que a API oficial não lê. É um teste desligável: sem as duas variáveis abaixo, o app funciona como antes e não chama a Apify. O painel mostra o aviso "Fonte não oficial" sempre que esses dados aparecem.
+
+1. Crie uma conta em https://apify.com no **plano Free**. Não cadastre cartão.
+2. No painel da Apify, abra **Settings > Integrations** e copie o **API token** (é um segredo: não envie por chat nem coloque no código).
+3. Na Vercel, em Settings > Environment Variables, cadastre `APIFY_TOKEN` com esse token e `UNOFFICIAL_SOURCE_ENABLED` com o valor `true`. Depois faça um novo deploy.
+4. Aplique a migration que cria a coluna de liberação por conta (`drizzle/0003_clever_overlord.sql`), somente quando você autorizar. Sem ela o `/admin` não consegue salvar a liberação.
+5. Entre em `/admin` e clique em "Fonte não oficial: desligada" na conta que deve usar a fonte. O botão passa a dizer "ligada". Toda conta começa desligada.
+
+**Atenção:** não troque para um plano pago da Apify sem pedir autorização antes. O Free tem US$ 5 de crédito por mês (cerca de 1.900 perfis, a US$ 2,60 por mil; página de preço apify.com/pricing e apify.com/apify/instagram-profile-scraper, consultadas em 2026-10-19). Se o crédito acabar ou a Apify recusar as consultas, os clientes devem ver "Dados indisponíveis" e o motivo fica no log do servidor. Esse comportamento ainda precisa ser confirmado em uma execução real.
+
+Para desligar a fonte, apague `UNOFFICIAL_SOURCE_ENABLED` (ou troque para outro valor) na Vercel e faça um novo deploy. Para cortar só uma conta, desligue o botão dela em `/admin`.
 
 ## Banco
 
@@ -168,13 +183,13 @@ Dinheiro recebido como pessoa física tem tributação própria. Converse com um
 3. Ao criar/alterar tabelas em `src/db/schema/`, rode `npm run db:generate` e revise o SQL em `drizzle/`.
 4. Aplique com `npm run db:migrate` somente no banco correto.
 
-A tabela `profile_snapshots` (migration `drizzle/0000_profile_snapshots.sql`) guarda um registro por perfil por dia. As tabelas de login `user`, `session`, `account` e `verification` (migration `drizzle/0001_auth.sql`) guardam contas, sessões, plano e @ travado. As tabelas de cobrança `subscription` e `billing_event`, e a marca de cortesia `user.complimentary` (migration `drizzle/0002_billing.sql`), guardam assinaturas e avisos do Asaas. São três migrations no total.
+A tabela `profile_snapshots` (migration `drizzle/0000_profile_snapshots.sql`) guarda um registro por perfil por dia. As tabelas de login `user`, `session`, `account` e `verification` (migration `drizzle/0001_auth.sql`) guardam contas, sessões, plano e @ travado. As tabelas de cobrança `subscription` e `billing_event`, e a marca de cortesia `user.complimentary` (migration `drizzle/0004_billing.sql`), guardam assinaturas e avisos do Asaas. São três migrations no total.
 
-Banco do projeto: Neon, projeto `nichemap` (região `aws-us-east-1`), criado em 2026-10-18 com as duas primeiras migrations (0000 e 0001) aplicadas. A 0002 ainda não foi aplicada; veja o aviso abaixo.
+Banco do projeto: Neon, projeto `nichemap` (região `aws-us-east-1`), criado em 2026-10-18 com as duas primeiras migrations (0000 e 0001) aplicadas. As migrations 0002 e 0003 (fonte não oficial) e 0004 (cobrança) ainda não foram aplicadas; veja o aviso abaixo.
 
-> **Atenção: aplique a 0002 no banco de produção ANTES de juntar (merge) ou publicar a cobrança.**
-> O login lê a coluna nova `user.complimentary`. Se o site novo for ao ar sem ela, **ninguém consegue entrar**, nem você.
-> A ordem é: 1) aplicar `drizzle/0002_billing.sql` no banco de produção; 2) só depois fazer o merge e o deploy.
+> **Atenção: aplique as migrations pendentes (0002, 0003 e 0004) no banco de produção ANTES de juntar (merge) ou publicar a cobrança.**
+> O login lê as colunas novas `user.unofficial_source` (0003) e `user.complimentary` (0004). Se o site novo for ao ar sem ela, **ninguém consegue entrar**, nem você.
+> A ordem é: 1) aplicar `drizzle/0002_shared_profiles.sql`, `drizzle/0003_clever_overlord.sql` e `drizzle/0004_billing.sql`, nessa ordem, no banco de produção (confira antes quais já estão lá); 2) só depois fazer o merge e o deploy.
 > Esse passo mexe no banco de produção, então só acontece com o **seu OK explícito**, e `npm run db:migrate` roda só num banco autorizado. Use o caminho de "Banco de produção (Vercel)" abaixo, ou o editor SQL da Vercel, como foi feito com a 0000 (ver `docs/setup.md`).
 
 ### Banco de produção (Vercel)

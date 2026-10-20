@@ -8,7 +8,7 @@ import { isPlanLockedBy, type BillingStatus } from "./billing-rules";
 import { deleteSubscription } from "./asaas";
 import { lockSubscription } from "./billing";
 
-export type LockResult = { ok: true } | { ok: false; reason: "in_use" | "already_locked" | "terms_required" };
+export type LockResult = { ok: true } | { ok: false; reason: "already_locked" | "terms_required" };
 
 export type ManualPlanResult = { ok: true } | { ok: false; reason: "subscription" };
 
@@ -19,6 +19,7 @@ export interface AccountRow {
   instagramUsername: string | null;
   plan: Plan;
   complimentary: boolean;
+  unofficialSource: boolean;
   createdAt: Date;
   lastSeenAt: Date | null;
   billingStatus: BillingStatus | null;
@@ -39,33 +40,17 @@ export interface AccountStats {
   estimatedMonthlyRevenue: number;
 }
 
-// Drizzle wraps pg errors, so the SQLSTATE may sit on the error or on its cause.
-export function isUniqueViolation(error: unknown): boolean {
-  const code = (e: unknown) => (typeof e === "object" && e !== null ? (e as { code?: unknown }).code : undefined);
-  return code(error) === "23505" || (error instanceof Error && code(error.cause) === "23505");
-}
-
 // `username` must already be normalized by resolveTarget(). Only an account without a
-// profile can lock one, and the unique index settles two accounts racing for the same @.
+// profile can lock one; several accounts may share the same @.
 export async function lockProfile(userId: string, username: string, acceptedTerms: boolean): Promise<LockResult> {
   if (!acceptedTerms) return { ok: false, reason: "terms_required" };
   const db = getDb();
-  try {
-    const rows = await db
-      .update(user)
-      .set({ instagramUsername: username, termsAcceptedAt: new Date() })
-      .where(and(eq(user.id, userId), isNull(user.instagramUsername)))
-      .returning({ id: user.id });
-    return rows.length ? { ok: true } : { ok: false, reason: "already_locked" };
-  } catch (err) {
-    if (isUniqueViolation(err)) return { ok: false, reason: "in_use" };
-    throw err;
-  }
-}
-
-export async function isUsernameTaken(username: string): Promise<boolean> {
-  const rows = await getDb().select({ id: user.id }).from(user).where(eq(user.instagramUsername, username)).limit(1);
-  return rows.length > 0;
+  const rows = await db
+    .update(user)
+    .set({ instagramUsername: username, termsAcceptedAt: new Date() })
+    .where(and(eq(user.id, userId), isNull(user.instagramUsername)))
+    .returning({ id: user.id });
+  return rows.length ? { ok: true } : { ok: false, reason: "already_locked" };
 }
 
 export async function unlockProfile(userId: string): Promise<void> {
@@ -86,6 +71,11 @@ export async function setManualPlan(userId: string, plan: Plan, complimentary: b
     await tx.update(user).set({ plan, complimentary: keepComplimentary }).where(eq(user.id, userId));
     return { ok: true };
   });
+}
+
+export async function setUnofficialSource(userId: string, enabled: boolean): Promise<void> {
+  const db = getDb();
+  await db.update(user).set({ unofficialSource: enabled }).where(eq(user.id, userId));
 }
 
 // Cancels the Asaas subscription first, then deletes the account in the same transaction. The
@@ -110,6 +100,7 @@ export async function listAccounts(): Promise<AccountRow[]> {
       instagramUsername: user.instagramUsername,
       plan: user.plan,
       complimentary: user.complimentary,
+      unofficialSource: user.unofficialSource,
       createdAt: user.createdAt,
       lastSeenAt: user.lastSeenAt,
       billingStatus: subscription.status,
@@ -178,11 +169,20 @@ export async function getAccountStats(now = new Date()): Promise<AccountStats> {
   };
 }
 
-// Profiles customers locked: tracked by the daily snapshot job.
+// Profiles customers locked, once each even when shared: tracked by the daily snapshot job.
 export async function listLockedUsernames(): Promise<string[]> {
+  const rows = await getDb()
+    .selectDistinct({ username: user.instagramUsername })
+    .from(user)
+    .where(isNotNull(user.instagramUsername));
+  return rows.flatMap((r) => (r.username ? [r.username] : []));
+}
+
+// Locked profiles of accounts opted in to the unofficial source: the snapshot job may use it for them.
+export async function listUnofficialUsernames(): Promise<string[]> {
   const rows = await getDb()
     .select({ username: user.instagramUsername })
     .from(user)
-    .where(isNotNull(user.instagramUsername));
+    .where(and(eq(user.unofficialSource, true), isNotNull(user.instagramUsername)));
   return rows.flatMap((r) => (r.username ? [r.username] : []));
 }

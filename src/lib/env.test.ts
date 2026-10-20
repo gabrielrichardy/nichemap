@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  getApifyToken,
   getAsaasCustomerPanelUrl,
   getAuthConfig,
   getDatabaseUrl,
@@ -117,5 +118,27 @@ describe("auth config", () => {
     expect(getAsaasCustomerPanelUrl("cus_1")).toBe("https://sandbox.asaas.com/customerAccount/show/cus_1");
     vi.stubEnv("ASAAS_ENV", "production");
     expect(getAsaasCustomerPanelUrl("cus_1")).toBe("https://www.asaas.com/customerAccount/show/cus_1");
+  });
+});
+
+describe("Apify token", () => {
+  it("is null with no variables", () => {
+    vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", undefined);
+    vi.stubEnv("APIFY_TOKEN", undefined);
+    expect(getApifyToken()).toBeNull();
+  });
+
+  it("is null unless the flag is exactly \"true\"", () => {
+    vi.stubEnv("APIFY_TOKEN", "apify-token");
+    for (const flag of ["1", "false"]) {
+      vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", flag);
+      expect(getApifyToken()).toBeNull();
+    }
+  });
+
+  it("returns the trimmed token when the flag is \"true\"", () => {
+    vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", "true");
+    vi.stubEnv("APIFY_TOKEN", "  apify-token  ");
+    expect(getApifyToken()).toBe("apify-token");
   });
 });

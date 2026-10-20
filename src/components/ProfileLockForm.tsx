@@ -7,16 +7,7 @@ import { confirmProfile, previewProfile, type ConfirmState, type PreviewState } 
 const WARNING =
   "Essa escolha é definitiva. Depois de confirmar, sua conta fica ligada a este perfil e não pode ser trocada por você.";
 
-function SupportLink({ href }: { href: string | null }) {
-  if (!href) return null;
-  return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 underline">
-      Falar com o suporte no WhatsApp
-    </a>
-  );
-}
-
-export function ProfileLockForm({ supportUrl }: { supportUrl: string | null }) {
+export function ProfileLockForm() {
   const [lookup, lookupAction, looking] = useActionState<PreviewState, FormData>(previewProfile, {});
   const [confirm, confirmAction, confirming] = useActionState<ConfirmState, FormData>(confirmProfile, {});
   const dialog = useRef<HTMLDialogElement>(null);
@@ -58,7 +49,6 @@ export function ProfileLockForm({ supportUrl }: { supportUrl: string | null }) {
             {lookup.error}
           </p>
         )}
-        {lookup.inUse && <SupportLink href={supportUrl} />}
       </form>
 
       {preview && (
@@ -78,6 +68,7 @@ export function ProfileLockForm({ supportUrl }: { supportUrl: string | null }) {
               <p className="font-medium text-slate-900 truncate">{preview.name}</p>
               <p className="text-sm text-slate-500">@{preview.username}</p>
               <p className="text-xs text-slate-400">{preview.followers.toLocaleString("pt-BR")} seguidores</p>
+              {preview.source === "unofficial" && <p className="text-xs text-orange-700">Dados de fonte não oficial</p>}
             </div>
           </div>
           <label className="flex items-start gap-2 text-sm text-slate-600">
@@ -106,7 +97,6 @@ export function ProfileLockForm({ supportUrl }: { supportUrl: string | null }) {
               {confirm.error}
             </p>
           )}
-          {confirm.inUse && <SupportLink href={supportUrl} />}
 
           <dialog
             ref={dialog}

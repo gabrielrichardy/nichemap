@@ -62,13 +62,13 @@ describe.skipIf(!url)("accounts (PostgreSQL)", () => {
     vi.unstubAllEnvs();
   });
 
-  it("lets only one of two racing accounts lock the same profile", async () => {
-    const { lockProfile } = await import("./accounts");
+  it("lets several accounts lock the same profile and tracks it once", async () => {
+    const { listLockedUsernames, lockProfile } = await import("./accounts");
     await createUser("a");
     await createUser("b");
     const results = await Promise.all([lockProfile("a", "biodev", true), lockProfile("b", "biodev", true)]);
-    expect(results).toContainEqual({ ok: true });
-    expect(results).toContainEqual({ ok: false, reason: "in_use" });
+    expect(results).toEqual([{ ok: true }, { ok: true }]);
+    expect(await listLockedUsernames()).toEqual(["biodev"]);
   });
 
   it("stores the normalized username once and requires the terms", async () => {
@@ -104,7 +104,7 @@ describe.skipIf(!url)("accounts (PostgreSQL)", () => {
   });
 
   it("deletes sessions with the account and frees its profile", async () => {
-    const { deleteAccount, isUsernameTaken, lockProfile } = await import("./accounts");
+    const { deleteAccount, listLockedUsernames, lockProfile } = await import("./accounts");
     const { getAuth } = await import("./auth");
     const { session } = await import("@/db/schema");
     await createUser("a");
@@ -112,7 +112,7 @@ describe.skipIf(!url)("accounts (PostgreSQL)", () => {
     await (await getAuth()!.$context).internalAdapter.createSession("a");
 
     await deleteAccount("a");
-    expect(await isUsernameTaken("biodev")).toBe(false);
+    expect(await listLockedUsernames()).toEqual([]);
     expect(await (await db()).select().from(session).where(eq(session.userId, "a"))).toHaveLength(0);
   });
 

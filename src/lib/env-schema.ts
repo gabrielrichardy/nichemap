@@ -34,6 +34,8 @@ export const whatsappDigitsSchema = z.string().regex(/^(55)?\d{10,11}$/);
 export const asaasWebhookTokenSchema = z.string().min(32).max(255).regex(/^\S+$/);
 
 export const asaasEnvSchema = z.enum(["sandbox", "production"]).default("sandbox");
+// Apify API token for the opt-in unofficial Instagram source.
+export const apifyTokenSchema = z.string().min(1);
 
 export const logLevelSchema = z.enum(["trace", "debug", "info", "warn", "error", "fatal", "silent"]).default("info");
 

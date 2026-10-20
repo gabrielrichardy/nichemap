@@ -4,7 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { PLAN_LABELS, PLANS } from "@/lib/access";
 import { getAccountStats, listAccounts } from "@/lib/accounts";
 import { formatBRL } from "@/lib/billing-plans";
-import { getAsaasCustomerPanelUrl } from "@/lib/env";
+import { getApifyToken, getAsaasCustomerPanelUrl } from "@/lib/env";
 import { requireAdmin } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Admin · Nichemap" };
@@ -34,6 +34,11 @@ export default async function AdminPage() {
             </div>
           ))}
         </dl>
+        <p className="text-sm text-slate-500">
+          {getApifyToken() !== null
+            ? "Fonte não oficial (chave geral): ligada"
+            : "Fonte não oficial (chave geral): desligada — nenhuma conta usa a Apify"}
+        </p>
         <AdminAccountsTable
           accounts={accounts.map((a) => ({
             ...a,

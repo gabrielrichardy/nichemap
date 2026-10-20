@@ -34,7 +34,7 @@ Controles sem ação removidos (issue #23): seletor "Últimos 30 dias" (não há
 
 Resolvido com as páginas de seção: menu horizontal no celular (abaixo de `md`, `aria-current` no item ativo); "Ver todos" dos cards viram links para as seções; card fictício "Plano Pro" removido; o card de temas virou “Temas do perfil”, com explicação do percentual e estado vazio; a seção Pessoas saiu do menu e do painel; menu e cabeçalho somem na impressão (`print:hidden`).
 
-Estados pertinentes: carregando, erro de rede, dados de exemplo, dados reais, falha da API (cai em exemplo com motivo). Perfil sem publicações mostra "Nenhuma publicação encontrada" (antes caía em posts de exemplo sem aviso).
+Estados pertinentes: carregando, erro de rede, dados de exemplo, dados reais, fonte não oficial (banner laranja `bg-orange-50 text-orange-800`, texto "Fonte não oficial — pode falhar ou ficar desatualizada"; nunca em verde nem como "Dados reais"), falha da API (cai em exemplo com motivo). Perfil sem publicações mostra "Nenhuma publicação encontrada" (antes caía em posts de exemplo sem aviso).
 
 ## Cobrança
 

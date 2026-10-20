@@ -1,0 +1,1 @@
+ALTER TABLE "user" DROP CONSTRAINT "user_instagram_username_unique";

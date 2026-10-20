@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { changePlan, unlockAccountProfile } from "@/app/admin/actions";
+import { changePlan, toggleUnofficialSource, unlockAccountProfile } from "@/app/admin/actions";
 import { PLAN_LABELS, PLANS, type Plan } from "@/lib/access";
 import type { Cycle } from "@/lib/billing-plans";
 import { isPlanLockedBy, type BillingStatus } from "@/lib/billing-rules";
@@ -13,6 +13,7 @@ export interface AdminAccount {
   instagramUsername: string | null;
   plan: Plan;
   complimentary: boolean;
+  unofficialSource: boolean;
   createdAt: string;
   lastSeenAt: string | null;
   billingStatus: BillingStatus | null;
@@ -152,6 +153,7 @@ export function AdminAccountsTable({ accounts }: { accounts: AdminAccount[] }) {
               </form>
               {locked && <p className="text-xs text-amber-700">Plano controlado pela assinatura</p>}
             </div>
+            <div className="flex flex-wrap gap-2 lg:flex-col lg:items-end">
             {a.instagramUsername ? (
               <form action={unlockAccountProfile} onSubmit={confirmUnlock(a.name)}>
                 <input type="hidden" name="userId" value={a.id} />
@@ -159,9 +161,19 @@ export function AdminAccountsTable({ accounts }: { accounts: AdminAccount[] }) {
                   Destravar perfil
                 </button>
               </form>
-            ) : (
-              <span aria-hidden="true" />
-            )}
+            ) : null}
+            <form action={toggleUnofficialSource}>
+              <input type="hidden" name="userId" value={a.id} />
+              <input type="hidden" name="enabled" value={a.unofficialSource ? "false" : "true"} />
+              <button
+                type="submit"
+                aria-pressed={a.unofficialSource}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+              >
+                {a.unofficialSource ? "Fonte não oficial: ligada" : "Fonte não oficial: desligada"}
+              </button>
+            </form>
+            </div>
           </li>
         );
       })}

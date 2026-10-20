@@ -17,6 +17,7 @@ export interface Viewer {
   instagramUsername: string | null;
   termsAcceptedAt: Date | null;
   complimentary: boolean;
+  unofficialSource: boolean;
 }
 
 // Read on every request from the database session (no cookie cache), so plan changes,
@@ -34,6 +35,7 @@ export async function getViewer(): Promise<Viewer | null> {
     instagramUsername?: string | null;
     termsAcceptedAt?: Date | string | null;
     complimentary?: boolean | null;
+    unofficialSource?: unknown;
   };
   return {
     userId: u.id,
@@ -45,6 +47,7 @@ export async function getViewer(): Promise<Viewer | null> {
     instagramUsername: u.instagramUsername ?? null,
     termsAcceptedAt: u.termsAcceptedAt ? new Date(u.termsAcceptedAt) : null,
     complimentary: u.complimentary === true,
+    unofficialSource: u.unofficialSource === true,
   };
 }
 

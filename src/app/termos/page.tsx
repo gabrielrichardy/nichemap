@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: "Termos de uso · Nichemap" };
 
 export default function TermosPage() {
   return (
-    <LegalPage title="Termos de uso" updated="19/10/2026">
+    <LegalPage title="Termos de uso" updated="20/10/2026">
       <section>
         <h2>O serviço</h2>
         <p>
@@ -83,6 +83,8 @@ export default function TermosPage() {
         <p>
           Os dados vêm da API oficial do Instagram, que pode ficar indisponível ou mudar sem aviso. Não garantimos
           disponibilidade contínua nem a exatidão de dados fornecidos pela Meta.
+          Para contas liberadas pelo administrador, os dados públicos do perfil podem vir de um fornecedor terceiro não
+          oficial (Apify), que pode falhar, ficar desatualizado ou ser desativado sem aviso.
         </p>
       </section>
       <section>

@@ -24,6 +24,7 @@ type SessionUser = {
   plan?: string;
   instagramUsername?: string | null;
   complimentary?: boolean;
+  unofficialSource?: boolean;
 };
 
 function signIn(user: SessionUser | null) {
@@ -55,6 +56,7 @@ const viewer = (overrides: Partial<Viewer>): Viewer => ({
   instagramUsername: "meuperfil",
   termsAcceptedAt: null,
   complimentary: false,
+  unofficialSource: false,
   ...overrides,
 });
 
@@ -129,5 +131,12 @@ describe("getViewer", () => {
     vi.mocked(headers).mockClear();
     expect(await getViewer()).toBeNull();
     expect(headers).toHaveBeenCalled();
+  });
+
+  it("reads the unofficial source flag, defaulting to false", async () => {
+    signIn({ ...customer("completo"), unofficialSource: true });
+    expect((await getViewer())?.unofficialSource).toBe(true);
+    signIn(customer("completo"));
+    expect((await getViewer())?.unofficialSource).toBe(false);
   });
 });

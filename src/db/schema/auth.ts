@@ -18,12 +18,14 @@ export const user = pgTable("user", {
   image: text("image"),
   ...timestamps,
   plan: text("plan").notNull().default("basico"),
-  // Locked Instagram profile, lowercased; unique so one profile belongs to one account.
-  instagramUsername: text("instagram_username").unique(),
+  // Locked Instagram profile, lowercased. Several accounts may lock the same profile.
+  instagramUsername: text("instagram_username"),
   termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
   // Owner-granted courtesy: the plan is kept for free and never billed.
   complimentary: boolean("complimentary").notNull().default(false),
+  // Admin opt-in: this account also reads the unofficial Instagram source.
+  unofficialSource: boolean("unofficial_source").notNull().default(false),
 });
 
 export const session = pgTable(

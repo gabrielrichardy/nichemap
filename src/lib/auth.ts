@@ -27,6 +27,7 @@ function createAuth(config: NonNullable<ReturnType<typeof getAuthConfig>>) {
         termsAcceptedAt: { type: "date", required: false, input: false },
         lastSeenAt: { type: "date", required: false, input: false },
         complimentary: { type: "boolean", required: false, defaultValue: false, input: false },
+        unofficialSource: { type: "boolean", required: false, defaultValue: false, input: false },
       },
     },
     databaseHooks: {

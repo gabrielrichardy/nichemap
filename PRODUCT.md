@@ -11,7 +11,7 @@ O Nichemap reúne essas informações num painel único, pensado para ser consul
 ## Público e papéis
 
 - **Social media de empresas** e **pessoas que gerenciam a própria presença** e querem acompanhar tudo pelo celular.
-- **Cliente**: entra com o Google, trava um único perfil do Instagram (escolha definitiva) e vê só esse perfil, conforme o plano.
+- **Cliente**: entra com o Google, trava um único perfil do Instagram (escolha definitiva) e vê só esse perfil, conforme o plano. Várias contas podem travar o mesmo @ (decisão do dono, 2026-10-19), por exemplo a equipe de uma marca.
 - **Admin** (e-mails em `ADMIN_EMAILS`): vê todas as contas em `/admin`, muda planos, destrava perfis e analisa qualquer perfil.
 
 | Seção | Básico | Intermediário | Completo |
@@ -46,14 +46,13 @@ Em ordem de prioridade:
 - Nota fiscal: o dono vende como pessoa física (CPF), então não há NFS-e. Se abrir CNPJ, a emissão automática é ligada no Asaas.
 - Notificações fora do site (WhatsApp pago, negativação no Serasa). Controles ainda sem ação estão na issue #23.
 - IA que encontra e lê concorrentes automaticamente (projeto separado; exige API paga a aprovar).
-- Teste de API não oficial do Instagram (projeto separado, restrito e desligável).
 - App nativo: o produto é web mobile-first (decisão do usuário, 2026-10-17). React Native/Expo não entra.
 
 ## Requisitos
 
 - Interface em português (pt-BR).
 - Funcionar no celular sem rolagem horizontal; desktop também suportado (sidebar a partir de `md`).
-- Dados do Instagram somente via API oficial (Graph API) com conta comercial/criador **pública** como alvo.
+- Dados do Instagram somente via API oficial (Graph API) com conta comercial/criador **pública** como alvo. Exceção de teste: para contas liberadas pelo admin (`user.unofficial_source`), quando a Graph recusa o @ como não comercial, o perfil público pode vir da Apify (fonte não oficial, plano Free, chave `UNOFFICIAL_SOURCE_ENABLED` + `APIFY_TOKEN`). O painel mostra o aviso "Fonte não oficial". Nunca para concorrentes nem para `?target=` de clientes.
 - O token do Instagram fica só no servidor (`.env.local`), nunca em `NEXT_PUBLIC_*` nem no cliente.
 - O parâmetro `target` é validado (formato de username do Instagram) antes de chamar a API.
 - Quando o dado não é real (mock ou estimado), a interface precisa dizer isso.
@@ -79,6 +78,8 @@ Em ordem de prioridade:
 | Cliente OAuth do Google | Pendente com o dono | Sem ele ninguém entra | Seguir `docs/onboarding.md` (Login com Google) |
 | Cobrança Asaas: teste completo no sandbox | Pendente | Fluxo de assinatura, webhook e cron não verificados com o Asaas real | Dono fornece a chave sandbox; seguir o roteiro de 8 passos da spec de cobrança |
 | Cobrança Asaas: conta e chaves de produção | Decisão do dono | Sem elas o site não cobra de verdade | Seguir `docs/onboarding.md` (Cobrança) depois do teste no sandbox |
+| Código 100 como recusa de "não comercial" (Graph) | Pendente de chamada real | A regra de fallback usa só o código 100, que também é "parâmetro inválido" genérico; sem teste real, não se sabe se perfil pessoal cai certo na Apify | Chamar a Graph com um perfil pessoal público (token válido) e restringir a regra ao `error_subcode` observado |
+| Fonte não oficial (Apify, plano Free) | Decisão do dono (2026-10-19) | Fornecedor pode falhar, mudar preço ou sair; crédito US$ 5/mês | Acompanhar consumo no painel da Apify; não subir de plano sem nova aprovação |
 
 ## Critérios de aceitação
 
