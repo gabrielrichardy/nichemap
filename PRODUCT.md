@@ -44,14 +44,13 @@ Em ordem de prioridade:
 
 - Cobrança automática dos planos e notificações. Controles ainda sem ação estão na issue #23.
 - IA que encontra e lê concorrentes automaticamente (projeto separado; exige API paga a aprovar).
-- Teste de API não oficial do Instagram (projeto separado, restrito e desligável).
 - App nativo: o produto é web mobile-first (decisão do usuário, 2026-10-17). React Native/Expo não entra.
 
 ## Requisitos
 
 - Interface em português (pt-BR).
 - Funcionar no celular sem rolagem horizontal; desktop também suportado (sidebar a partir de `md`).
-- Dados do Instagram somente via API oficial (Graph API) com conta comercial/criador **pública** como alvo.
+- Dados do Instagram somente via API oficial (Graph API) com conta comercial/criador **pública** como alvo. Exceção de teste: para contas liberadas pelo admin (`user.unofficial_source`), quando a Graph recusa o @ como não comercial, o perfil público pode vir da Apify (fonte não oficial, plano Free, chave `UNOFFICIAL_SOURCE_ENABLED` + `APIFY_TOKEN`). O painel mostra o aviso "Fonte não oficial". Nunca para concorrentes nem para `?target=` de clientes.
 - O token do Instagram fica só no servidor (`.env.local`), nunca em `NEXT_PUBLIC_*` nem no cliente.
 - O parâmetro `target` é validado (formato de username do Instagram) antes de chamar a API.
 - Quando o dado não é real (mock ou estimado), a interface precisa dizer isso.
@@ -75,6 +74,8 @@ Em ordem de prioridade:
 | Concorrentes iguais para todos os clientes do plano Completo | Limitação conhecida | Cliente de outro nicho vê a mesma lista | Projeto da IA de concorrentes |
 | Textos de privacidade e termos | Rascunho | Precisam de revisão jurídica e dos dados do responsável | Preencher `[NOME DO RESPONSÁVEL]` e `[CPF/CNPJ]` e revisar |
 | Cliente OAuth do Google | Pendente com o dono | Sem ele ninguém entra | Seguir `docs/onboarding.md` (Login com Google) |
+| Código 100 como recusa de "não comercial" (Graph) | Pendente de chamada real | A regra de fallback usa só o código 100, que também é "parâmetro inválido" genérico; sem teste real, não se sabe se perfil pessoal cai certo na Apify | Chamar a Graph com um perfil pessoal público (token válido) e restringir a regra ao `error_subcode` observado |
+| Fonte não oficial (Apify, plano Free) | Decisão do dono (2026-10-19) | Fornecedor pode falhar, mudar preço ou sair; crédito US$ 5/mês | Acompanhar consumo no painel da Apify; não subir de plano sem nova aprovação |
 
 ## Critérios de aceitação
 

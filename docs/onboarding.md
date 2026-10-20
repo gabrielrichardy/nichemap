@@ -38,6 +38,8 @@ Copie `.env.example` para `.env.local` (ignorado pelo Git) e preencha só o que 
 | `BETTER_AUTH_URL` | Endereço do site (`http://localhost:3000` em dev, domínio real em produção) |
 | `ADMIN_EMAILS` | E-mails do Google com acesso a `/admin` e Configurações, separados por vírgula |
 | `SUPPORT_WHATSAPP` | WhatsApp do suporte mostrado aos clientes (DDD + número) |
+| `UNOFFICIAL_SOURCE_ENABLED` | Chave geral da fonte não oficial. Só vale `true` exato; qualquer outro valor deixa a fonte desligada |
+| `APIFY_TOKEN` | Token da conta Apify (somente no servidor). Sem ele a fonte fica desligada |
 
 Em produção, as mesmas variáveis ficam na Vercel (Settings > Environment Variables).
 
@@ -77,6 +79,20 @@ Sem as quatro variáveis de login, o site mostra "Login ainda não configurado" 
 7. Na Vercel, cadastre as mesmas variáveis (com `BETTER_AUTH_URL` = domínio real), além de `DATABASE_URL` e `DATABASE_URL_UNPOOLED` do Neon, e faça um novo deploy.
 
 Fluxo do cliente: entra com o Google → digita o @ → confirma a foto do perfil (escolha definitiva) → painel conforme o plano (todos começam no Básico). O admin muda planos e destrava perfis em `/admin`.
+
+## Fonte não oficial (Apify): teste opcional
+
+Serve para contas **pessoais públicas**, que a API oficial não lê. É um teste desligável: sem as duas variáveis abaixo, o app funciona como antes e não chama a Apify. O painel mostra o aviso "Fonte não oficial" sempre que esses dados aparecem.
+
+1. Crie uma conta em https://apify.com no **plano Free**. Não cadastre cartão.
+2. No painel da Apify, abra **Settings > Integrations** e copie o **API token** (é um segredo: não envie por chat nem coloque no código).
+3. Na Vercel, em Settings > Environment Variables, cadastre `APIFY_TOKEN` com esse token e `UNOFFICIAL_SOURCE_ENABLED` com o valor `true`. Depois faça um novo deploy.
+4. Aplique a migration que cria a coluna de liberação por conta (`drizzle/0002_aromatic_thunderball.sql`), somente quando você autorizar. Sem ela o `/admin` não consegue salvar a liberação.
+5. Entre em `/admin` e clique em "Fonte não oficial: desligada" na conta que deve usar a fonte. O botão passa a dizer "ligada". Toda conta começa desligada.
+
+**Atenção:** não troque para um plano pago da Apify sem pedir autorização antes. O Free tem US$ 5 de crédito por mês (cerca de 1.900 perfis, a US$ 2,60 por mil). Se o crédito acabar ou a Apify recusar as consultas, os clientes veem "Dados indisponíveis" e o motivo fica no log do servidor.
+
+Para desligar a fonte, apague `UNOFFICIAL_SOURCE_ENABLED` (ou troque para outro valor) na Vercel e faça um novo deploy. Para cortar só uma conta, desligue o botão dela em `/admin`.
 
 ## Banco
 

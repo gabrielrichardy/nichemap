@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: "Política de privacidade · Nichemap
 
 export default function PrivacidadePage() {
   return (
-    <LegalPage title="Política de privacidade" updated="18/10/2026">
+    <LegalPage title="Política de privacidade" updated="20/10/2026">
       <section>
         <h2>Quem é o responsável</h2>
         <p>
@@ -29,6 +29,11 @@ export default function PrivacidadePage() {
           Consultamos pela API oficial da Meta os dados públicos do perfil comercial ou de criador escolhido (seguidores,
           publicações, curtidas e comentários) para montar o painel e o histórico de crescimento.
         </p>
+        <p>
+          Para contas liberadas pelo administrador, quando a API oficial não atende o perfil (conta pessoal, por
+          exemplo), os mesmos dados públicos podem ser consultados pelo fornecedor não oficial Apify. Essa fonte pode
+          falhar ou ficar desatualizada, e o painel mostra o aviso &quot;Fonte não oficial&quot;.
+        </p>
       </section>
       <section>
         <h2>Para que usamos</h2>
@@ -45,6 +50,7 @@ export default function PrivacidadePage() {
           <li>Neon: banco de dados onde as informações ficam guardadas.</li>
           <li>Vercel: hospedagem do site.</li>
           <li>Meta: consulta dos dados públicos do Instagram.</li>
+          <li>Apify: consulta dos dados públicos do perfil, só para contas liberadas pelo administrador.</li>
         </ul>
         <p>Não vendemos seus dados.</p>
       </section>
