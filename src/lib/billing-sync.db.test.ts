@@ -13,6 +13,7 @@ vi.mock("@/lib/asaas", async (importOriginal) => ({
   getPayment: vi.fn(),
   getSubscription: vi.fn(),
   deleteSubscription: vi.fn(),
+  listOverduePayments: vi.fn(),
 }));
 
 const url = process.env.TEST_DATABASE_URL;
@@ -86,10 +87,17 @@ describe.skipIf(!url)("billing sync (PostgreSQL)", () => {
   beforeEach(async () => {
     await (await db()).execute(sql`truncate table "user", billing_event cascade`);
     const mock = await asaas();
-    for (const fn of [mock.getAsaasConfig, mock.getPayment, mock.getSubscription, mock.deleteSubscription]) {
+    for (const fn of [
+      mock.getAsaasConfig,
+      mock.getPayment,
+      mock.getSubscription,
+      mock.deleteSubscription,
+      mock.listOverduePayments,
+    ]) {
       fn.mockReset();
     }
     mock.deleteSubscription.mockResolvedValue();
+    mock.listOverduePayments.mockResolvedValue([]);
     mock.getSubscription.mockImplementation(async (id) => ({ id, status: "INACTIVE", deleted: true }));
   });
 
@@ -314,6 +322,80 @@ describe.skipIf(!url)("billing sync (PostgreSQL)", () => {
       invoiceUrl: "https://pay.example/p2",
     });
     expect((await readUser("a")).plan).toBe("basico");
+  });
+
+  it("paying the overdue charge reactivates the account when no other charge is overdue", async () => {
+    const { handleAsaasEvent } = await import("./billing-sync");
+    const mock = await asaas();
+    mock.getPayment.mockResolvedValue(payment("RECEIVED"));
+    await createUser("a");
+    await insertSubscription("a", {
+      status: "suspended",
+      overdueSince: new Date("2026-10-19T03:00:00Z"),
+      periodEnd: new Date("2026-10-19T03:00:00Z"),
+      invoiceUrl: "https://pay.example/old",
+    });
+
+    expect(await handleAsaasEvent(paymentEvent("PAYMENT_RECEIVED"), NOW)).toBe("processed");
+    expect(mock.listOverduePayments).toHaveBeenCalledWith("sub_a");
+    expect(await readSubscription("a")).toMatchObject({
+      status: "active",
+      overdueSince: null,
+      periodEnd: new Date("2026-11-19T03:00:00Z"),
+      invoiceUrl: "https://pay.example/pay_1",
+    });
+    expect((await readUser("a")).plan).toBe("completo");
+  });
+
+  it("paying the newer charge while an older one is still overdue keeps the account unpaid", async () => {
+    const { handleAsaasEvent } = await import("./billing-sync");
+    const mock = await asaas();
+    mock.getPayment.mockResolvedValue({ ...payment("RECEIVED"), dueDate: "2026-11-19" });
+    mock.listOverduePayments.mockResolvedValue([
+      { id: "pay_0", dueDate: "2026-10-19", invoiceUrl: "https://pay.example/pay_0" },
+    ]);
+    await createUser("a");
+    const overdueSince = new Date("2026-10-19T03:00:00Z");
+    await insertSubscription("a", {
+      status: "suspended",
+      overdueSince,
+      periodEnd: overdueSince,
+      invoiceUrl: "https://pay.example/pay_0",
+    });
+
+    expect(await handleAsaasEvent(paymentEvent("PAYMENT_RECEIVED"), NOW)).toBe("processed");
+    expect(await readSubscription("a")).toMatchObject({
+      status: "suspended",
+      overdueSince,
+      periodEnd: new Date("2026-12-19T03:00:00Z"),
+      invoiceUrl: "https://pay.example/pay_0",
+    });
+    expect((await readUser("a")).plan).toBe("basico");
+  });
+
+  it("paying the older charge first moves the account to the newer charge still overdue", async () => {
+    const { handleAsaasEvent } = await import("./billing-sync");
+    const mock = await asaas();
+    mock.getPayment.mockResolvedValue(payment("RECEIVED"));
+    mock.listOverduePayments.mockResolvedValue([
+      { id: "pay_2", dueDate: "2026-11-19", invoiceUrl: "https://pay.example/pay_2" },
+    ]);
+    await createUser("a", { plan: "completo" });
+    await insertSubscription("a", {
+      status: "overdue",
+      overdueSince: new Date("2026-10-19T03:00:00Z"),
+      periodEnd: new Date("2026-10-19T03:00:00Z"),
+      invoiceUrl: "https://pay.example/pay_1",
+    });
+
+    expect(await handleAsaasEvent(paymentEvent("PAYMENT_RECEIVED"), NOW)).toBe("processed");
+    expect(await readSubscription("a")).toMatchObject({
+      status: "overdue",
+      overdueSince: new Date("2026-11-19T03:00:00Z"),
+      periodEnd: new Date("2026-11-19T03:00:00Z"),
+      invoiceUrl: "https://pay.example/pay_2",
+    });
+    expect((await readUser("a")).plan).toBe("completo");
   });
 
   it("a payment Asaas no longer has (404) is ignored and marked processed", async () => {

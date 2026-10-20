@@ -138,7 +138,7 @@ Fluxo, em ordem:
 
 1. **Checkout** (`startCheckout` em `billing.ts`): o servidor cria ou reutiliza o cliente no Asaas e a assinatura, com `externalReference` = id do usuário, grava a linha `subscription` e redireciona para a primeira cobrança no Asaas. O CPF/CNPJ vai ao Asaas e não é guardado no Nichemap.
 2. **Webhook** (`POST /api/billing/webhook`): confere o token (`asaas-access-token`, comparação em tempo constante), grava o id do evento em `billing_event` (se já existe, responde 200 sem reprocessar) e chama `handleAsaasEvent`.
-3. **Consulta no Asaas** (`billing-sync.ts`): o aviso só dá os ids. O módulo busca a cobrança ou a assinatura na API e decide a partir dela, não a partir do conteúdo do aviso.
+3. **Consulta no Asaas** (`billing-sync.ts`): o aviso só dá os ids. O módulo busca a cobrança ou a assinatura na API e decide a partir dela, não a partir do conteúdo do aviso. Antes de reativar uma conta em atraso por um pagamento, lista as cobranças ainda vencidas da assinatura (`listOverduePayments`); se sobrar alguma, a conta segue em atraso desde a mais antiga.
 4. **Regras** (`billing-rules.ts`, função pura): situação atual + evento + data → nova situação e plano. Testada sem banco e sem rede.
 5. **Escrita**: `saveOutcome` atualiza `subscription` e `user.plan` na mesma transação, com a trava da linha `user` (mesma ordem de trava que o webhook usa, evitando deadlock). Falha → 500 e o evento não fica marcado como processado, então o Asaas reenvia.
 6. **Prazos**: `runBillingTick` (cron diário, e também ao carregar a conta) aplica os prazos das regras.

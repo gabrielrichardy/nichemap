@@ -16,7 +16,8 @@ export interface BillingState {
 }
 
 export type BillingEvent =
-  | { type: "paid"; dueDate: Date }
+  // openSince: due date of the oldest charge of this subscription still overdue at Asaas, if any.
+  | { type: "paid"; dueDate: Date; openSince?: Date }
   | { type: "overdue"; dueDate: Date }
   | { type: "refunded" }
   | { type: "chargeback" }
@@ -63,7 +64,7 @@ const to = (state: BillingState, status: BillingStatus, cancelRemote: boolean): 
   cancelRemote,
 });
 
-function onPaid(state: BillingState, dueDate: Date): BillingOutcome {
+function onPaid(state: BillingState, dueDate: Date, openSince?: Date): BillingOutcome {
   if (state.status === "ended") return unchanged(state);
   const paidUntil = addCycle(dueDate, state.cycle);
   // Card charges send CONFIRMED and, ~30 days later, RECEIVED for the same charge. On an active
@@ -76,6 +77,10 @@ function onPaid(state: BillingState, dueDate: Date): BillingOutcome {
   // CONFIRMED) adds its paid time but does not settle the overdue charge.
   if ((state.status === "overdue" || state.status === "suspended") && state.overdueSince && dueDate < state.overdueSince) {
     return unchanged({ ...state, periodEnd });
+  }
+  // Another charge is still overdue: the account stays unpaid, now overdue since that charge.
+  if ((state.status === "overdue" || state.status === "suspended") && openSince) {
+    return unchanged({ ...state, periodEnd, overdueSince: openSince });
   }
   return unchanged({
     ...state,
@@ -103,7 +108,7 @@ export function applyBillingEvent(state: BillingState, event: BillingEvent, now:
   const paidTimeLeft = state.periodEnd !== null && state.periodEnd > now;
   switch (event.type) {
     case "paid":
-      return onPaid(state, event.dueDate);
+      return onPaid(state, event.dueDate, event.openSince);
     case "overdue":
       return status === "active" ? unchanged({ ...state, status: "overdue", overdueSince: event.dueDate }) : unchanged(state);
     case "tick":

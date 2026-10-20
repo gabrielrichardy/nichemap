@@ -51,7 +51,7 @@ Testes atuais (Node, sem rede nem banco):
 - `src/lib/billing.test.ts`: busca do resumo de cobrança na página de conta (admin pula, sem configuração pula, falha vira `null` com log).
 - `src/app/api/billing/webhook/route.test.ts`: sem token ou token errado = 401, corpo inválido = 400, falha de processamento = 500, sucesso e duplicado = 200.
 - `src/lib/billing.db.test.ts`: **integração com PostgreSQL real** do checkout (duas chamadas e chamadas concorrentes criam uma assinatura só, falha do Asaas não deixa linha), troca de plano e cancelamento.
-- `src/lib/billing-sync.db.test.ts`: **integração com PostgreSQL real** do webhook e dos prazos (idempotência por id de evento, evento que falhou é reprocessado no reenvio, 404 do Asaas, prazos do tick). Mesmo padrão de `TEST_DATABASE_URL`.
+- `src/lib/billing-sync.db.test.ts`: **integração com PostgreSQL real** do webhook e dos prazos (idempotência por id de evento, evento que falhou é reprocessado no reenvio, 404 do Asaas, pagamento que não reativa a conta enquanto outra cobrança segue vencida, prazos do tick). Mesmo padrão de `TEST_DATABASE_URL`.
 - `src/lib/access.test.ts`: tabela completa de acesso por seção e plano; admin acessa tudo.
 - `src/lib/viewer.test.ts`: redirecionamentos (`/entrar`, `/perfil`, `/plano`), 404 de admin, alvo do cliente ignora `?target`, leitura de `headers()` sem login configurado.
 - `src/lib/onboarding.test.ts`: mensagens da busca do perfil (inválido, indisponível, conta pessoal).

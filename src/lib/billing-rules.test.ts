@@ -102,6 +102,31 @@ describe("paid", () => {
     }
   });
 
+  it("stays unpaid, overdue since the oldest open charge, while another charge is still overdue", () => {
+    for (const status of ["overdue", "suspended"] as const) {
+      const before = state({
+        status,
+        periodEnd: d("2026-10-01T00:00:00Z"),
+        overdueSince: d("2026-10-01T00:00:00Z"),
+        scheduledPlan: "completo",
+      });
+      const out = applyBillingEvent(
+        before,
+        { type: "paid", dueDate: d("2026-11-01T00:00:00Z"), openSince: d("2026-10-01T00:00:00Z") },
+        now,
+      );
+      expect(out.state).toEqual({ ...before, periodEnd: d("2026-12-01T00:00:00Z") });
+      expect(out.cancelRemote).toBe(false);
+    }
+    // Paying the older charge first moves overdueSince forward to the newer one still open.
+    const moved = applyBillingEvent(
+      state({ status: "suspended", periodEnd: d("2026-10-01T00:00:00Z"), overdueSince: d("2026-10-01T00:00:00Z") }),
+      { type: "paid", dueDate: d("2026-10-01T00:00:00Z"), openSince: d("2026-11-01T00:00:00Z") },
+      now,
+    );
+    expect(moved.state).toMatchObject({ status: "suspended", overdueSince: d("2026-11-01T00:00:00Z") });
+  });
+
   it("renews an active subscription from the later of periodEnd and dueDate + cycle", () => {
     const out = applyBillingEvent(
       state({ status: "active", periodEnd: d("2026-12-01T00:00:00Z") }),

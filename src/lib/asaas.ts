@@ -116,6 +116,20 @@ export async function getPayment(paymentId: string): Promise<{
   };
 }
 
+// Charges of the subscription still overdue, oldest first. limit=100 is the API maximum; a
+// subscription is cancelled after 30 days overdue, so it never has that many open.
+export async function listOverduePayments(
+  subscriptionId: string,
+): Promise<{ id: string; dueDate: string; invoiceUrl: string }[]> {
+  const { data } = await request<{ data: AsaasPayment[] }>(
+    "GET",
+    `/payments?subscription=${id(subscriptionId)}&status=OVERDUE&limit=100`,
+  );
+  return data
+    .map((payment) => ({ id: payment.id, dueDate: payment.dueDate, invoiceUrl: payment.invoiceUrl }))
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+}
+
 // status: ACTIVE | INACTIVE | EXPIRED. A removed subscription reads deleted: true.
 export async function getSubscription(subscriptionId: string): Promise<{ id: string; status: string; deleted: boolean }> {
   const subscription = await request<{ id: string; status: string; deleted?: boolean }>(
