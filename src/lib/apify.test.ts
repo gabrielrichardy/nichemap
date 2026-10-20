@@ -92,9 +92,9 @@ describe("fetchApifyProfile", () => {
     await expect(promise).rejects.not.toThrow(/tok-secret/);
   });
 
-  it("returns malformed items as a negative outcome", async () => {
+  it("throws on malformed items so they are never cached", async () => {
     stubFetch([{ foo: 1 }]);
-    expect(await fetchApifyProfile("pessoal", "tok")).toEqual({ ok: false, reason: "malformed" });
+    await expect(fetchApifyProfile("pessoal", "tok")).rejects.toThrow("Resposta inesperada do Apify.");
   });
 });
 

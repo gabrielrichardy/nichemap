@@ -69,13 +69,13 @@ function toRaw(item: z.infer<typeof itemSchema>): RawBusinessDiscovery {
   };
 }
 
-// Outcome of a successful Apify call. Negative answers are data, so they can be cached too.
+// Outcome of an Apify call. Only these two stable answers are data, so only they are cached.
 export type ApifyOutcome =
   | { ok: true; profile: RawBusinessDiscovery }
-  | { ok: false; reason: "private" | "not_found" | "malformed" };
+  | { ok: false; reason: "private" | "not_found" };
 
 // Uncached call. `username` must already be validated. The token goes only in the header.
-// HTTP and transport errors throw; the answer itself (private, not found, malformed) is returned.
+// HTTP, transport and malformed-response errors throw, so they are never cached and the next request retries.
 export async function fetchApifyProfile(username: string, token: string): Promise<ApifyOutcome> {
   const res = await fetch(ENDPOINT, {
     method: "POST",
@@ -92,7 +92,7 @@ export async function fetchApifyProfile(username: string, token: string): Promis
   const item = items.success ? itemSchema.safeParse(items.data[0]) : null;
   if (!item?.success) {
     logger.warn({ target: username, status: res.status }, "Apify profile response malformed");
-    return { ok: false, reason: "malformed" };
+    throw new Error("Resposta inesperada do Apify.");
   }
   if (item.data.private) return { ok: false, reason: "private" };
   return { ok: true, profile: toRaw(item.data) };
@@ -109,12 +109,10 @@ const cachedProfile = unstable_cache(
   { revalidate: CACHE_SECONDS },
 );
 
-// Negative outcomes are cached for the same 6 h and turned into errors here, outside the cache.
+// Private and not-found answers are cached for the same 6 h and turned into errors here, outside the cache.
 export async function getApifyProfile(username: string): Promise<RawBusinessDiscovery> {
   if (!getApifyToken()) throw new Error("Fonte não oficial desligada.");
   const outcome = await cachedProfile(username);
   if (outcome.ok) return outcome.profile;
-  if (outcome.reason === "private") throw new PrivateProfileError();
-  if (outcome.reason === "not_found") throw new ProfileNotFoundError();
-  throw new Error("Resposta inesperada do Apify.");
+  throw outcome.reason === "private" ? new PrivateProfileError() : new ProfileNotFoundError();
 }
