@@ -22,6 +22,8 @@ export const user = pgTable("user", {
   instagramUsername: text("instagram_username"),
   termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  // Admin opt-in: this account also reads the unofficial Instagram source.
+  unofficialSource: boolean("unofficial_source").notNull().default(false),
 });
 
 export const session = pgTable(

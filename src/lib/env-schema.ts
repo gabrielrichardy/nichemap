@@ -30,6 +30,9 @@ export const authSecretSchema = z.string().min(32);
 // Brazilian phone in digits: DDD + number (10-11 digits), optionally prefixed with 55.
 export const whatsappDigitsSchema = z.string().regex(/^(55)?\d{10,11}$/);
 
+// Apify API token for the opt-in unofficial Instagram source.
+export const apifyTokenSchema = z.string().min(1);
+
 export const logLevelSchema = z.enum(["trace", "debug", "info", "warn", "error", "fatal", "silent"]).default("info");
 
 export function parseEnv<T>(key: string, value: unknown, schema: z.ZodType<T>): T {

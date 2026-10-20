@@ -1,9 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getApifyProfile, PrivateProfileError, ProfileNotFoundError } from "./apify";
 import { fetchProfile, GraphRequestError } from "./graph";
 import { lockMessage, lookupProfile } from "./onboarding";
 
 vi.mock("server-only", () => ({}));
 vi.mock("./logger", () => ({ logger: { warn: vi.fn() } }));
+vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
+vi.mock("./apify", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./apify")>()),
+  getApifyProfile: vi.fn(),
+}));
 vi.mock("./graph", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./graph")>()),
   fetchProfile: vi.fn(),
@@ -20,7 +26,15 @@ beforeEach(() => {
     media_count: 3,
   });
 });
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.clearAllMocks();
+});
+
+const NOT_BUSINESS =
+  "Não encontramos esse perfil como conta comercial ou de criador. Se a conta for pessoal, mude para profissional nas configurações do Instagram e tente de novo.";
+const SOURCE_DISABLED =
+  "Não conseguimos ler seu perfil como conta profissional e a fonte não oficial está desativada para sua conta. Para continuar, mude sua conta do Instagram para profissional (comercial ou criador).";
 
 describe("lookupProfile", () => {
   it("normalizes the @ and returns a preview", async () => {
@@ -28,7 +42,13 @@ describe("lookupProfile", () => {
     expect(fetchProfile).toHaveBeenCalledWith("biodev", expect.anything(), false);
     expect(result).toEqual({
       ok: true,
-      profile: { username: "biodev", name: "Bio Dev", pictureUrl: "https://example.com/p.jpg", followers: 1234 },
+      profile: {
+        username: "biodev",
+        name: "Bio Dev",
+        pictureUrl: "https://example.com/p.jpg",
+        followers: 1234,
+        source: "live",
+      },
     });
   });
 
@@ -51,12 +71,59 @@ describe("lookupProfile", () => {
     expect(await lookupProfile("biodev")).toEqual({ ok: false, message: "Serviço indisponível no momento. Tente mais tarde." });
   });
 
-  it("explains personal or missing accounts", async () => {
+  it("shows the original not-business copy when the unofficial source is off for a non-opted account", async () => {
     vi.mocked(fetchProfile).mockRejectedValueOnce(new GraphRequestError("not found", 100));
-    expect(await lookupProfile("pessoal")).toEqual({
-      ok: false,
-      message:
-        "Não encontramos esse perfil como conta comercial ou de criador. Se a conta for pessoal, mude para profissional nas configurações do Instagram e tente de novo.",
+    expect(await lookupProfile("pessoal")).toEqual({ ok: false, message: NOT_BUSINESS });
+  });
+
+  it("shows the original not-business copy when the flag is on but the account is not allowed", async () => {
+    vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", "true");
+    vi.stubEnv("APIFY_TOKEN", "apify-token");
+    vi.mocked(fetchProfile).mockRejectedValueOnce(new GraphRequestError("not found", 100));
+    expect(await lookupProfile("pessoal")).toEqual({ ok: false, message: NOT_BUSINESS });
+    expect(getApifyProfile).not.toHaveBeenCalled();
+  });
+
+  it("reports the disabled source for an allowed account while the source is off", async () => {
+    vi.mocked(fetchProfile).mockRejectedValueOnce(new GraphRequestError("not found", 100));
+    expect(await lookupProfile("pessoal", { allowUnofficial: true })).toEqual({ ok: false, message: SOURCE_DISABLED });
+    expect(getApifyProfile).not.toHaveBeenCalled();
+  });
+
+  describe("with the unofficial source allowed", () => {
+    beforeEach(() => {
+      vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", "true");
+      vi.stubEnv("APIFY_TOKEN", "apify-token");
+      vi.mocked(fetchProfile).mockRejectedValueOnce(new GraphRequestError("not found", 100));
+    });
+
+    it("previews a personal account from the unofficial source", async () => {
+      vi.mocked(getApifyProfile).mockResolvedValueOnce({ username: "pessoal", followers_count: 50, media_count: 1 });
+      expect(await lookupProfile("pessoal", { allowUnofficial: true })).toEqual({
+        ok: true,
+        profile: { username: "pessoal", name: "@pessoal", pictureUrl: null, followers: 50, source: "unofficial" },
+      });
+    });
+
+    it("explains that private profiles do not work", async () => {
+      vi.mocked(getApifyProfile).mockRejectedValueOnce(new PrivateProfileError());
+      expect(await lookupProfile("pessoal", { allowUnofficial: true })).toEqual({
+        ok: false,
+        message: "Perfis privados não funcionam. Deixe o perfil público no Instagram e tente de novo.",
+      });
+    });
+
+    it("explains a profile the unofficial source cannot find", async () => {
+      vi.mocked(getApifyProfile).mockRejectedValueOnce(new ProfileNotFoundError());
+      expect(await lookupProfile("pessoal", { allowUnofficial: true })).toEqual({ ok: false, message: NOT_BUSINESS });
+    });
+
+    it("hides other unofficial source failures behind a generic message", async () => {
+      vi.mocked(getApifyProfile).mockRejectedValueOnce(new Error("Apify 502"));
+      expect(await lookupProfile("pessoal", { allowUnofficial: true })).toEqual({
+        ok: false,
+        message: "Serviço indisponível no momento. Tente mais tarde.",
+      });
     });
   });
 

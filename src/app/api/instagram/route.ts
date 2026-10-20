@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { dashboardOptionsFor, UNAVAILABLE_MESSAGE } from "@/lib/dashboard";
+import { dashboardOptionsFor, failureMessage } from "@/lib/dashboard";
 import { getDashboardData, INVALID_TARGET_MESSAGE } from "@/lib/instagram";
 import { getViewer, targetFor } from "@/lib/viewer";
 
@@ -14,6 +14,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: INVALID_TARGET_MESSAGE }, { status: 400 });
   }
   const data = await getDashboardData(target, dashboardOptionsFor(viewer));
-  if (!data) return NextResponse.json({ error: UNAVAILABLE_MESSAGE }, { status: 503 });
+  if ("failure" in data) return NextResponse.json({ error: failureMessage(data) }, { status: 503 });
   return NextResponse.json(data);
 }

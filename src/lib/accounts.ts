@@ -12,6 +12,7 @@ export interface AccountRow {
   email: string;
   instagramUsername: string | null;
   plan: Plan;
+  unofficialSource: boolean;
   createdAt: Date;
   lastSeenAt: Date | null;
 }
@@ -47,6 +48,11 @@ export async function setPlan(userId: string, plan: Plan): Promise<void> {
   await db.update(user).set({ plan }).where(eq(user.id, userId));
 }
 
+export async function setUnofficialSource(userId: string, enabled: boolean): Promise<void> {
+  const db = getDb();
+  await db.update(user).set({ unofficialSource: enabled }).where(eq(user.id, userId));
+}
+
 // Sessions and linked Google accounts go with it (ON DELETE CASCADE); the @ becomes free.
 export async function deleteAccount(userId: string): Promise<void> {
   const db = getDb();
@@ -61,6 +67,7 @@ export async function listAccounts(): Promise<AccountRow[]> {
       email: user.email,
       instagramUsername: user.instagramUsername,
       plan: user.plan,
+      unofficialSource: user.unofficialSource,
       createdAt: user.createdAt,
       lastSeenAt: user.lastSeenAt,
     })
@@ -101,5 +108,14 @@ export async function listLockedUsernames(): Promise<string[]> {
     .selectDistinct({ username: user.instagramUsername })
     .from(user)
     .where(isNotNull(user.instagramUsername));
+  return rows.flatMap((r) => (r.username ? [r.username] : []));
+}
+
+// Locked profiles of accounts opted in to the unofficial source: the snapshot job may use it for them.
+export async function listUnofficialUsernames(): Promise<string[]> {
+  const rows = await getDb()
+    .select({ username: user.instagramUsername })
+    .from(user)
+    .where(and(eq(user.unofficialSource, true), isNotNull(user.instagramUsername)));
   return rows.flatMap((r) => (r.username ? [r.username] : []));
 }

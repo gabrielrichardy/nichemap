@@ -68,6 +68,7 @@ export function ProfileLockForm() {
               <p className="font-medium text-slate-900 truncate">{preview.name}</p>
               <p className="text-sm text-slate-500">@{preview.username}</p>
               <p className="text-xs text-slate-400">{preview.followers.toLocaleString("pt-BR")} seguidores</p>
+              {preview.source === "unofficial" && <p className="text-xs text-orange-700">Dados de fonte não oficial</p>}
             </div>
           </div>
           <label className="flex items-start gap-2 text-sm text-slate-600">

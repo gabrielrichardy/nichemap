@@ -42,7 +42,9 @@ src/
     TopContent, RelevantPeople, Opportunities, ProfileHeader, Header, Sidebar
   lib/
     instagram.ts             monta DashboardData (perfil, conteúdo, temas, concorrentes, histórico); resolveTarget(); collectDailySnapshots()
-    graph.ts                 chamadas à Graph API, mensagens de erro pt-BR (token 190, permissão, limite), engajamento
+    graph.ts                 chamadas à Graph API, mensagens de erro pt-BR (token 190, permissão, limite), engajamento, recusa "não comercial" (código 100)
+    apify.ts                 fonte não oficial: chamada ao actor da Apify (perfil público), validação Zod, cache de 6 h, perfil privado (server-only)
+    profile-source.ts        decisão de fonte: Graph primeiro; Apify só na recusa "não comercial" e se a conta puder usar (server-only)
     themes.ts                temas automáticos: termos/hashtags presentes em mais legendas, sem lista fixa (puro, testado)
     growth.ts                cálculo de crescimento a partir dos snapshots (puro, testado)
     snapshots.ts             grava/lê profile_snapshots (server-only)
@@ -53,7 +55,7 @@ src/
     auth.ts / auth-client.ts Better Auth (Google + Drizzle), campos do usuário server-owned (input: false)
     viewer.ts                getViewer/requireViewer/requireAdmin/targetFor: quem é o visitante, redirecionamentos, alvo
     access.ts                planos e acesso por seção (puro, testado)
-    accounts.ts              travar/destravar @, plano, exclusão, listagem e estatísticas de contas
+    accounts.ts              travar/destravar @, plano, fonte não oficial por conta, exclusão, listagem e estatísticas de contas
     onboarding.ts            busca do perfil antes de travar (mensagens pt-BR)
     mockData.ts              dados de exemplo
     types.ts                 DashboardData e tipos de cada bloco
@@ -76,7 +78,17 @@ scripts/verify-quality-rules.mjs    self-check das regras locais
 2. `DashboardClient` (cliente) chama `GET /api/instagram?target=…`.
 3. A rota remove um `@` inicial e valida `target` com `targetUsernameSchema` (letras, dígitos, `.`, `_`, até 30) — o valor é interpolado na expressão `fields` da Graph API, então qualquer outro caractere é rejeitado com 400.
 4. `getDashboardData` (módulo `server-only`) lê as credenciais por `getInstagramCredentials()` em `src/lib/env.ts`, que valida `INSTAGRAM_BUSINESS_ID` como numérico. Sem credenciais, devolve mock. Com configuração inválida ou erro da API, registra um `warn` no logger e devolve mock com o motivo em `note`.
-5. A resposta é um `DashboardData` com `source: "live" | "mock"`, que a UI usa para mostrar o aviso.
+5. A resposta é um `DashboardData` com `source: "live" | "mock" | "unofficial"`, que a UI usa para mostrar o aviso.
+
+Fonte não oficial (Apify), decidida em `fetchProfileWithFallback` (`src/lib/profile-source.ts`):
+
+1. A Graph API é sempre tentada primeiro.
+2. Só a recusa "não comercial" (`isNotBusinessError`, código 100) pode cair para a Apify. Qualquer outro erro (token, limite, Meta fora do ar) é relançado sem gastar crédito.
+3. A Apify só é chamada se `getApifyToken()` existir (`UNOFFICIAL_SOURCE_ENABLED` = `"true"` e `APIFY_TOKEN`) e o visitante puder usá-la: admin, ou conta com `user.unofficial_source = true` olhando o próprio @ travado (`dashboardOptionsFor` e `lookupProfile`).
+4. Sem essas condições, a recusa vira `SourceDisabledError` (mensagem de fonte desativada para o cliente; exemplo com motivo para o admin).
+5. Competidores (Market Radar) nunca usam a Apify. Na coleta diária, a Apify só vale para @ travados de contas liberadas; se um mesmo @ for concorrente e também travado de um cliente liberado, ele não recebe fallback (fica sem dados, como os demais concorrentes recusados).
+6. O resultado da Apify fica em cache por 6 h por @ (`unstable_cache` do Next, chave sem o token). Erros não são cacheados.
+7. Perfil privado vira `PrivateProfileError` ("Perfis privados não funcionam..."), também no travamento.
 
 O token nunca chega ao cliente. `src/app` e `src/components` não podem importar `@/db` (regra de lint); o acesso a dados futuro fica em módulos de `src/lib` ou de funcionalidade.
 
@@ -87,12 +99,14 @@ Limitações conhecidas do fluxo atual:
 - Sem `INSTAGRAM_COMPETITORS`, Mercado e Oportunidades usam dados de exemplo mesmo com token; `sampleSections` marca esses blocos e a UI mostra o selo “Exemplo”. Com concorrentes, ambos são reais (Oportunidades = `buildOpportunities`, score = engajamento × 10). Pessoas foi removida até haver fonte (#4).
 - Cada visita a uma página consulta a Graph API (perfil + até 10 concorrentes), sem cache. Revisar se o limite de chamadas da Meta aparecer.
 - O token vai como `access_token` na query string da Graph API (formato documentado pela Meta); não é registrado em log.
+- Fonte não oficial: a Apify devolve só alguns posts recentes e não traz visualizações. O formato da resposta do actor (`apify~instagram-profile-scraper`) ainda não foi conferido com chamada real; a regra de recusa usa só o código 100 da Graph (ver `docs/setup.md`, pendência 8).
 
 ## Login e autorização
 
 - Better Auth com Google; sessões no banco (sem cache em cookie), lidas a cada request por `getViewer()`. `getViewer()` sempre lê `headers()`, então nenhuma página que depende do visitante é pré-renderizada.
 - Toda página do painel chama `requireViewer(href)` antes de buscar dados: sem sessão → `/entrar`; cliente sem @ → `/perfil`; fora do plano → `/plano`; Configurações e `/admin` → 404 para clientes. `/api/instagram` aplica as mesmas regras (401/403/503).
 - Cliente: alvo = @ travado (`?target` ignorado), sem chamadas de concorrentes fora do Completo, sem dados de exemplo (mostra "Dados indisponíveis"). Admin: comportamento anterior.
+- Liberação da fonte não oficial: coluna `user.unofficial_source` (padrão `false`), alterada só por `setUnofficialSource` em `src/app/admin/actions.ts` (`requireAdmin()`); não aparece para o cliente.
 - `plan`, `instagramUsername`, `termsAcceptedAt`, `lastSeenAt` são `input: false` no Better Auth: `/api/auth/update-user` rejeita esses campos (teste de integração).
 - Server actions de admin chamam `requireAdmin()` e validam com Zod.
 - Risco: todas as visitas de todos os clientes usam o token do dono na Graph API, sem cache; com muitos clientes o limite da Meta pode estourar.
@@ -104,6 +118,7 @@ Limitações conhecidas do fluxo atual:
 - Pool: `max: 5`, timeout de conexão 5 s, ocioso 30 s; criado na primeira chamada a `getDb()`, então build e testes não precisam de banco.
 - `profile_snapshots` (`drizzle/0000_profile_snapshots.sql`): `username`, `taken_on` (dia no fuso de Brasília), `followers`, `media_count`, `engagement_pct`; índice único (`username`, `taken_on`) usado pelo upsert diário e pelas consultas por período.
 - `user`, `session`, `account`, `verification` (`drizzle/0001_auth.sql`): tabelas do Better Auth; `user` tem `plan` (padrão `basico`), `instagram_username` (sem unicidade desde `drizzle/0002`: várias contas podem travar o mesmo @; a coleta diária grava cada @ uma vez), `terms_accepted_at`, `last_seen_at` (último login). Sessões e contas Google apagam em cascata com o usuário.
+- `user.unofficial_source` (`drizzle/0003_clever_overlord.sql`, `boolean not null default false`): liberação da fonte não oficial por conta. Migration gerada, ainda não aplicada sem autorização.
 - Coleta: Vercel Cron chama `/api/cron/snapshot` às 11:00 UTC com `Authorization: Bearer $CRON_SECRET`; grava o perfil padrão, os concorrentes e os perfis travados pelos clientes. Só grava dados reais (exige token).
 - Leitura: `getDashboardData` busca os últimos 30 dias; se o banco falhar, o painel segue sem histórico e registra `warn` no log.
 
@@ -126,6 +141,7 @@ Limitações conhecidas do fluxo atual:
 | Better Auth 1.7.7 com Google | Login sem senha guardada; adaptador Drizzle; campos server-owned com `input: false` | Context7 `/better-auth/better-auth`, `npm view`, 2026-10-18 | Upgrade de major ou novo provedor |
 | Planos por seção em `access.ts`, aplicados no servidor | Bloqueio não pode ser só visual | Spec de login, 2026-10-18 | Cobrança automática |
 | Drizzle + PostgreSQL | Default do toolkit; necessidade concreta: snapshots diários | `PRODUCT.md` | Se o produto dispensar histórico |
+| Apify (`apify~instagram-profile-scraper`) como plano B para conta pessoal, só em contas liberadas | Teste desligável pedido pelo dono; custo zero no Free; sem login de conta própria no Instagram | Spec `2026-10-19-fonte-nao-oficial-design.md`, preço Apify em 2026-10-19 | Cobrança, fornecedor sair, ou Meta bloquear; ou se o código 100 não for confirmado |
 
 ## Manutenção
 

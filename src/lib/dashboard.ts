@@ -1,6 +1,6 @@
 import "server-only";
 import { canAccess, canSeeCompetitors } from "./access";
-import { getDashboardData, INVALID_TARGET_MESSAGE, type DashboardOptions } from "./instagram";
+import { getDashboardData, INVALID_TARGET_MESSAGE, type DashboardFailure, type DashboardOptions } from "./instagram";
 import type { DashboardData } from "./types";
 import { targetFor, type Viewer } from "./viewer";
 
@@ -12,6 +12,13 @@ export type DashboardResult =
 
 export const UNAVAILABLE_MESSAGE = "Dados indisponíveis no momento. Tente novamente mais tarde.";
 
+export const NOT_BUSINESS_MESSAGE =
+  "Não conseguimos ler seu perfil como conta profissional e a fonte não oficial está desativada para sua conta. Para continuar, mude sua conta do Instagram para profissional (comercial ou criador).";
+
+export function failureMessage({ failure }: DashboardFailure): string {
+  return failure === "not_business" ? NOT_BUSINESS_MESSAGE : UNAVAILABLE_MESSAGE;
+}
+
 // Gating is applied to the data itself, not only to pages: the API returns the same object.
 // Customers never get sample data presented as their profile; admins keep the fallback.
 export function dashboardOptionsFor(viewer: Viewer): Required<DashboardOptions> {
@@ -19,6 +26,7 @@ export function dashboardOptionsFor(viewer: Viewer): Required<DashboardOptions> 
     includeCompetitors: canSeeCompetitors(viewer),
     includeContent: canAccess(viewer, "/conteudo"),
     mockOnFailure: viewer.isAdmin,
+    allowUnofficial: viewer.isAdmin || viewer.unofficialSource,
   };
 }
 
@@ -33,7 +41,7 @@ export async function loadDashboard(searchParams: PageSearchParams, viewer: View
   const target = targetFor(viewer, param);
   if (!target) return { target: param ?? "", error: INVALID_TARGET_MESSAGE };
   const data = await getDashboardData(target, dashboardOptionsFor(viewer));
-  return data ? { target, data } : { target, error: UNAVAILABLE_MESSAGE };
+  return "failure" in data ? { target, error: failureMessage(data) } : { target, data };
 }
 
 // Profile shown in the header for pages that do not load Instagram data.

@@ -65,7 +65,7 @@ export interface Opportunity {
 export type SampleSection = "market" | "opportunities";
 
 export interface DashboardData {
-  source: "live" | "mock";
+  source: "live" | "mock" | "unofficial";
   fetchedAt: string;
   note?: string;
   profile: {

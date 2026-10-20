@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { changePlan, unlockAccountProfile } from "@/app/admin/actions";
+import { changePlan, toggleUnofficialSource, unlockAccountProfile } from "@/app/admin/actions";
 import { PLAN_LABELS, PLANS, type Plan } from "@/lib/access";
 
 export interface AdminAccount {
@@ -10,6 +10,7 @@ export interface AdminAccount {
   email: string;
   instagramUsername: string | null;
   plan: Plan;
+  unofficialSource: boolean;
   createdAt: string;
   lastSeenAt: string | null;
 }
@@ -76,16 +77,27 @@ export function AdminAccountsTable({ accounts }: { accounts: AdminAccount[] }) {
               Salvar
             </button>
           </form>
-          {a.instagramUsername ? (
-            <form action={unlockAccountProfile} onSubmit={confirmUnlock(a.name)}>
+          <div className="flex flex-wrap gap-2 lg:flex-col lg:items-end">
+            {a.instagramUsername ? (
+              <form action={unlockAccountProfile} onSubmit={confirmUnlock(a.name)}>
+                <input type="hidden" name="userId" value={a.id} />
+                <button type="submit" className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
+                  Destravar perfil
+                </button>
+              </form>
+            ) : null}
+            <form action={toggleUnofficialSource}>
               <input type="hidden" name="userId" value={a.id} />
-              <button type="submit" className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
-                Destravar perfil
+              <input type="hidden" name="enabled" value={a.unofficialSource ? "false" : "true"} />
+              <button
+                type="submit"
+                aria-pressed={a.unofficialSource}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+              >
+                {a.unofficialSource ? "Fonte não oficial: ligada" : "Fonte não oficial: desligada"}
               </button>
             </form>
-          ) : (
-            <span aria-hidden="true" />
-          )}
+          </div>
         </li>
       ))}
     </ul>

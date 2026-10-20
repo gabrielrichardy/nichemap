@@ -35,6 +35,7 @@ Testes atuais (Node, sem rede nem banco):
 - `src/lib/themes.test.ts`: temas tirados do próprio conteúdo, acento/hashtag unificados, links/menções/palavras vazias ignorados.
 - `src/lib/growth.test.ts`: crescimento só com 2+ dias, percentuais, dia no fuso de Brasília.
 - `src/lib/graph.test.ts`: mensagens de erro da Graph API (token expirado, permissão, limite) sem vazar o token; cálculo de engajamento.
+- `src/lib/apify.test.ts` e `src/lib/profile-source.test.ts`: fonte não oficial com `fetch` mockado: mapeamento da resposta, perfil privado, resposta malformada, token fora da URL, e a regra de decisão (só recusa "não comercial" cai para a Apify; chave desligada ou conta não liberada não chama a Apify).
 - `src/lib/cron.test.ts`: o cron só aceita `Bearer <CRON_SECRET>` exato; sem segredo, ninguém passa.
 - `src/lib/snapshots.db.test.ts`: **integração com PostgreSQL real** (migration, upsert diário, histórico em ordem). Só roda com `TEST_DATABASE_URL` apontando para um banco descartável; a CI pula. Última execução: 2026-10-18, Postgres 17 local descartável, passou.
 - `src/lib/access.test.ts`: tabela completa de acesso por seção e plano; admin acessa tudo.
