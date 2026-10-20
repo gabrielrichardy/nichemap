@@ -7,6 +7,7 @@ import {
   getAsaasConfig,
   getPayment,
   getSubscription,
+  listOverduePayments,
 } from "./asaas";
 
 vi.mock("server-only", () => ({}));
@@ -140,6 +141,25 @@ describe("Asaas client", () => {
     );
     await expect(firstPaymentUrl("sub_123")).resolves.toBe("https://sandbox.asaas.com/i/pay_1");
     expect(fetchMock.mock.calls[0][0]).toBe("https://api-sandbox.asaas.com/v3/subscriptions/sub_123/payments");
+  });
+
+  it("listOverduePayments lists the subscription's OVERDUE charges oldest first", async () => {
+    const fetchMock = stubFetch(
+      Response.json({
+        hasMore: false,
+        data: [
+          { id: "pay_3", status: "OVERDUE", dueDate: "2026-11-20", invoiceUrl: "https://sandbox.asaas.com/i/pay_3" },
+          { id: "pay_2", status: "OVERDUE", dueDate: "2026-10-20", invoiceUrl: "https://sandbox.asaas.com/i/pay_2" },
+        ],
+      }),
+    );
+    await expect(listOverduePayments("sub_123")).resolves.toEqual([
+      { id: "pay_2", dueDate: "2026-10-20", invoiceUrl: "https://sandbox.asaas.com/i/pay_2" },
+      { id: "pay_3", dueDate: "2026-11-20", invoiceUrl: "https://sandbox.asaas.com/i/pay_3" },
+    ]);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api-sandbox.asaas.com/v3/payments?subscription=sub_123&status=OVERDUE&limit=100");
+    expect(init?.method).toBe("GET");
   });
 
   it("aborts a request after 10 seconds and surfaces the timeout as an error", async () => {

@@ -3,9 +3,22 @@ import { timingSafeEqual } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import { billingEvent, subscription } from "@/db/schema";
-import { AsaasError, deleteSubscription, getAsaasConfig, getPayment, getSubscription } from "./asaas";
+import {
+  AsaasError,
+  deleteSubscription,
+  getAsaasConfig,
+  getPayment,
+  getSubscription,
+  listOverduePayments,
+} from "./asaas";
 import { lockSubscription, saveOutcome, toBillingState, type Tx } from "./billing";
-import { applyBillingEvent, type BillingEvent, type BillingState, type BillingStatus } from "./billing-rules";
+import {
+  applyBillingEvent,
+  type BillingEvent,
+  type BillingOutcome,
+  type BillingState,
+  type BillingStatus,
+} from "./billing-rules";
 import { logger } from "./logger";
 
 // Asaas webhook payload: only the ids are used; everything else is re-read from the API.
@@ -107,6 +120,29 @@ function newInvoiceUrl(resolved: Resolved, before: BillingState, after: BillingS
   return undefined;
 }
 
+// A payment that would bring an unpaid account back to active only does so when no other
+// charge of the subscription is still overdue at Asaas; otherwise the account stays unpaid,
+// overdue since the oldest open charge, and links to that charge.
+async function applyChecked(
+  resolved: Resolved,
+  state: BillingState,
+  now: Date,
+): Promise<{ outcome: BillingOutcome; invoiceUrl?: string }> {
+  const { rule } = resolved;
+  const outcome = applyBillingEvent(state, rule, now);
+  const reactivates = (state.status === "overdue" || state.status === "suspended") && outcome.state.status === "active";
+  if (rule.type === "paid" && reactivates) {
+    const [oldest] = await listOverduePayments(resolved.asaasSubscriptionId);
+    if (oldest) {
+      return {
+        outcome: applyBillingEvent(state, { ...rule, openSince: brazilDay(oldest.dueDate) }, now),
+        invoiceUrl: oldest.invoiceUrl,
+      };
+    }
+  }
+  return { outcome, invoiceUrl: newInvoiceUrl(resolved, state, outcome.state) };
+}
+
 // Applies a resolved event to the account it belongs to. False when no row matches.
 async function apply(tx: Tx, resolved: Resolved, now: Date): Promise<boolean> {
   const [match] = await tx
@@ -119,12 +155,11 @@ async function apply(tx: Tx, resolved: Resolved, now: Date): Promise<boolean> {
   if (!row || row.asaasSubscriptionId !== resolved.asaasSubscriptionId) return false;
 
   const state = toBillingState(row);
-  const outcome = applyBillingEvent(state, resolved.rule, now);
+  const { outcome, invoiceUrl } = await applyChecked(resolved, state, now);
   if (outcome.cancelRemote) await deleteSubscription(row.asaasSubscriptionId);
   // Only real changes are saved: saveOutcome rewrites user.plan, which the owner may set by
   // hand once a subscription has ended.
   if (stateChanged(state, outcome.state)) await saveOutcome(tx, row.userId, outcome);
-  const invoiceUrl = newInvoiceUrl(resolved, state, outcome.state);
   if (invoiceUrl) {
     await tx.update(subscription).set({ invoiceUrl }).where(eq(subscription.userId, row.userId));
   }

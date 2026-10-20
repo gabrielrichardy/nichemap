@@ -72,6 +72,7 @@ Só com a assinatura **ativa** (não vale em "aguardando pagamento", "pagamento 
 
 - Cobrança venceu sem pagamento: a conta entra em **"pagamento pendente"** — o plano continua por **3 dias**, com aviso em todas as páginas ("Seu pagamento está pendente. Pague até DD/MM para não perder o plano X", com link para a cobrança). O Asaas manda os lembretes por e-mail/SMS (pacote padrão).
 - Passados 3 dias sem pagar: volta ao Básico. A assinatura continua aberta no Asaas; se a pessoa pagar a cobrança atrasada depois, o plano volta na hora.
+- Duas cobranças em atraso ao mesmo tempo: pagar uma só não reativa a conta. Ela segue em "pagamento pendente" (ou no Básico), contando o atraso a partir da cobrança mais antiga ainda vencida no Asaas, com o link para ela. O plano volta quando não restar cobrança vencida.
 - Cobrança atrasada por mais de 30 dias: a assinatura é cancelada no Asaas, para não acumular cobranças.
 - Contestação no cartão (chargeback) ou estorno: volta ao Básico na hora **e a assinatura é cancelada no Asaas**, para não haver nova cobrança.
 - Toda assinatura que termina (cancelada, vencida, estornada) leva a conta ao **Básico**, mesmo que antes ela tivesse um plano manual; o dono pode reaplicar o plano manual depois. **[decisão do Claude]**
