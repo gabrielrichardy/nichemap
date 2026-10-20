@@ -227,4 +227,26 @@ describe("getDashboardData with live data", () => {
     expect(getApifyProfile).toHaveBeenCalledWith("pessoal");
     expect(saveSnapshot).toHaveBeenCalledWith(expect.objectContaining({ username: "pessoal", followers: 300 }));
   });
+
+  it("never uses the unofficial source for a competitor, even when it is an opted-in customer's locked profile", async () => {
+    vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "test-token");
+    vi.stubEnv("INSTAGRAM_BUSINESS_ID", "123");
+    vi.stubEnv("INSTAGRAM_COMPETITORS", "labtech");
+    vi.stubEnv("INSTAGRAM_TARGET_USERNAME", "biodev");
+    vi.stubEnv("DATABASE_URL", "postgres://app:pw@localhost:5432/app");
+    vi.stubEnv("UNOFFICIAL_SOURCE_ENABLED", "true");
+    vi.stubEnv("APIFY_TOKEN", "apify-token");
+    vi.mocked(listLockedUsernames).mockResolvedValueOnce(["labtech"]);
+    vi.mocked(listUnofficialUsernames).mockResolvedValueOnce(["labtech"]);
+    // Every @ is refused as non-business; a competitor must not get the Apify fallback.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ error: { code: 100, message: "not found" } }, { status: 400 })),
+    );
+
+    const result = await collectDailySnapshots();
+    expect(result.saved).toEqual([]);
+    expect(result.failed.map((f) => f.username)).toContain("labtech");
+    expect(getApifyProfile).not.toHaveBeenCalled();
+  });
 });

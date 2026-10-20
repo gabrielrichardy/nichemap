@@ -86,7 +86,7 @@ Fonte não oficial (Apify), decidida em `fetchProfileWithFallback` (`src/lib/pro
 2. Só a recusa "não comercial" (`isNotBusinessError`, código 100) pode cair para a Apify. Qualquer outro erro (token, limite, Meta fora do ar) é relançado sem gastar crédito.
 3. A Apify só é chamada se `getApifyToken()` existir (`UNOFFICIAL_SOURCE_ENABLED` = `"true"` e `APIFY_TOKEN`) e o visitante puder usá-la: admin, ou conta com `user.unofficial_source = true` olhando o próprio @ travado (`dashboardOptionsFor` e `lookupProfile`).
 4. Sem essas condições, a recusa vira `SourceDisabledError` (mensagem de fonte desativada para o cliente; exemplo com motivo para o admin).
-5. Competidores (Market Radar) nunca usam a Apify. Na coleta diária, a Apify só vale para @ travados de contas liberadas; se um mesmo @ for concorrente e também de um cliente liberado, a Apify é usada (decisão "true wins", aceita).
+5. Competidores (Market Radar) nunca usam a Apify. Na coleta diária, a Apify só vale para @ travados de contas liberadas; se um mesmo @ for concorrente e também travado de um cliente liberado, ele não recebe fallback (fica sem dados, como os demais concorrentes recusados).
 6. O resultado da Apify fica em cache por 6 h por @ (`unstable_cache` do Next, chave sem o token). Erros não são cacheados.
 7. Perfil privado vira `PrivateProfileError` ("Perfis privados não funcionam..."), também no travamento.
 

@@ -283,20 +283,22 @@ async function lockedOrNone(list: () => Promise<string[]> = listLockedUsernames)
 }
 
 // Daily job: one snapshot per tracked profile (default target, competitors, customers).
-// Only locked profiles of opted-in accounts may use the unofficial source.
+// Only locked profiles of opted-in accounts may use the unofficial source; competitors never do.
 export async function collectDailySnapshots(): Promise<CollectResult> {
   const credentials = getInstagramCredentials();
   if (!credentials) throw new Error("Instagram não configurado (INSTAGRAM_ACCESS_TOKEN e INSTAGRAM_BUSINESS_ID).");
   const target = resolveTarget(undefined);
   const [locked, unofficial] = await Promise.all([lockedOrNone(), lockedOrNone(listUnofficialUsernames)]);
-  const usernames = [...new Set([...(target ? [target] : []), ...getCompetitorUsernames(), ...locked])];
+  const competitors = getCompetitorUsernames();
+  const usernames = [...new Set([...(target ? [target] : []), ...competitors, ...locked])];
   const unofficialSet = new Set(unofficial);
+  const competitorSet = new Set(competitors);
   const takenOn = dayInBrazil(new Date());
 
   const results = await Promise.allSettled(
     usernames.map(async (username) => {
       const { profile } = await fetchProfileWithFallback(username, credentials, {
-        allowUnofficial: unofficialSet.has(username),
+        allowUnofficial: unofficialSet.has(username) && !competitorSet.has(username),
       });
       await saveSnapshot({
         username,

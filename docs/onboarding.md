@@ -90,7 +90,7 @@ Serve para contas **pessoais públicas**, que a API oficial não lê. É um test
 4. Aplique a migration que cria a coluna de liberação por conta (`drizzle/0002_aromatic_thunderball.sql`), somente quando você autorizar. Sem ela o `/admin` não consegue salvar a liberação.
 5. Entre em `/admin` e clique em "Fonte não oficial: desligada" na conta que deve usar a fonte. O botão passa a dizer "ligada". Toda conta começa desligada.
 
-**Atenção:** não troque para um plano pago da Apify sem pedir autorização antes. O Free tem US$ 5 de crédito por mês (cerca de 1.900 perfis, a US$ 2,60 por mil). Se o crédito acabar ou a Apify recusar as consultas, os clientes veem "Dados indisponíveis" e o motivo fica no log do servidor.
+**Atenção:** não troque para um plano pago da Apify sem pedir autorização antes. O Free tem US$ 5 de crédito por mês (cerca de 1.900 perfis, a US$ 2,60 por mil; página de preço apify.com/pricing e apify.com/apify/instagram-profile-scraper, consultadas em 2026-10-19). Se o crédito acabar ou a Apify recusar as consultas, os clientes devem ver "Dados indisponíveis" e o motivo fica no log do servidor. Esse comportamento ainda precisa ser confirmado em uma execução real.
 
 Para desligar a fonte, apague `UNOFFICIAL_SOURCE_ENABLED` (ou troque para outro valor) na Vercel e faça um novo deploy. Para cortar só uma conta, desligue o botão dela em `/admin`.
 
