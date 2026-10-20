@@ -16,6 +16,7 @@ export interface Viewer {
   plan: Plan;
   instagramUsername: string | null;
   termsAcceptedAt: Date | null;
+  complimentary: boolean;
   unofficialSource: boolean;
 }
 
@@ -33,6 +34,7 @@ export async function getViewer(): Promise<Viewer | null> {
     plan?: unknown;
     instagramUsername?: string | null;
     termsAcceptedAt?: Date | string | null;
+    complimentary?: boolean | null;
     unofficialSource?: unknown;
   };
   return {
@@ -44,6 +46,7 @@ export async function getViewer(): Promise<Viewer | null> {
     plan: isPlan(u.plan) ? u.plan : "basico",
     instagramUsername: u.instagramUsername ?? null,
     termsAcceptedAt: u.termsAcceptedAt ? new Date(u.termsAcceptedAt) : null,
+    complimentary: u.complimentary === true,
     unofficialSource: u.unofficialSource === true,
   };
 }

@@ -22,6 +22,8 @@
 | Better Auth 1.7.7 (versão exata) para login com Google | Suporta Next 16 App Router, adaptador Drizzle/PostgreSQL e Google; peers `next ^16`, `drizzle-orm ^0.45.2`. 1.7.7 era a versão estável mais recente com 2+ semanas | `npm view better-auth time peerDependencies`, Context7 `/better-auth/better-auth` (instalação, Next.js, Google, Drizzle), 2026-10-18 |
 | Fonte não oficial para contas pessoais: Apify `apify~instagram-profile-scraper`, plano Free, sem cartão | Conta pessoal pública não aparece na `business_discovery`. Escolha do dono (2026-10-19) entre Apify, HikerAPI e biblioteca privada: Apify não exige login de conta nossa no Instagram. Custo conferido nas páginas de preço apify.com/pricing e apify.com/apify/instagram-profile-scraper, consultadas em 2026-10-19: Free com US$ 5/mês de crédito, US$ 2,60 por 1.000 perfis. Não subir de plano sem nova aprovação | Páginas de preço do Apify (2026-10-19); `docs/superpowers/specs/2026-10-19-fonte-nao-oficial-design.md` |
 | `.env.local.example` consolidado em `.env.example` | Um único arquivo de exemplo com banco + Instagram; `.gitignore` versiona só `.env.example` | toolkit `templates/next/.env.example` |
+| Asaas API v3: URLs `https://api-sandbox.asaas.com/v3` e `https://api.asaas.com/v3`, chave no header `access_token`, header `User-Agent` enviado (`Nichemap`) | Exigidos pelo Asaas; `User-Agent` é obrigatório para contas raiz criadas desde 13/06/2024 | docs.asaas.com `autenticação-1`, referência `criar-nova-assinatura` (OpenAPI), 2026-10-19 |
+| Assinatura criada com `billingType: "UNDEFINED"` | O enum de assinatura aceita `UNDEFINED`; para cobranças, a doc diz que com `UNDEFINED` o pagador escolhe entre as formas habilitadas ao abrir a fatura. **Não confirmado**: se, numa assinatura `UNDEFINED` paga com cartão na 1ª fatura, o Asaas cobra o cartão sozinho nos meses seguintes, e se Pix vira Pix Automático. A doc só garante cobrança automática do cartão em assinatura `CREDIT_CARD` (dados do cartão enviados na criação). Falta testar no sandbox com a chave do dono; se falhar, `createSubscription` ganha `billingType` e o formulário pergunta o meio | docs.asaas.com `criar-nova-cobranca`, `assinaturas-recorrência`, `criando-assinatura-com-cartao-de-credito`, 2026-10-19 |
 
 ## Componentes
 
@@ -42,6 +44,18 @@
 | Memória | `claude-mem` e memória do Claude Code já existem | Usuário | Reaproveitado; Obsidian não aplicável (sem necessidade) |
 
 Sobreposição de skills: as mesmas 9 skills já existem globalmente em `~/.claude/skills` (e `find-skills` em `~/.agents/skills`). Nada global foi alterado. As cópias locais garantem que o repositório funcione em outra máquina; nesta máquina a versão global pode ter precedência no Claude Code.
+
+## Cobrança (Asaas)
+
+| Item | Estado | Fonte e data |
+|---|---|---|
+| Documentação da API consultada | Validado na doc | docs.asaas.com (autenticação, criar cobrança, assinaturas, webhooks, eventos de cobranças e assinaturas), 2026-10-19. Taxas e preços da spec: asaas.com/precos-e-taxas |
+| Ambiente | `ASAAS_ENV` (`sandbox` padrão ou `production`) escolhe `https://api-sandbox.asaas.com/v3` ou `https://api.asaas.com/v3` e o painel `sandbox.asaas.com` ou `asaas.com` | `src/lib/env.ts` |
+| Variáveis | `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN` (32 a 255 caracteres, sem espaços), `ASAAS_ENV`; só no servidor, validadas em `src/lib/env-schema.ts`. Sem `ASAAS_API_KEY` e `ASAAS_WEBHOOK_TOKEN`, "Assinar" fica indisponível | `.env.example`, `docs/onboarding.md` |
+| Webhook | `POST /api/billing/webhook`, token no cabeçalho `asaas-access-token`. Eventos tratados: `PAYMENT_CONFIRMED`, `PAYMENT_RECEIVED`, `PAYMENT_OVERDUE`, `PAYMENT_REFUNDED`, `PAYMENT_CHARGEBACK_REQUESTED`, `SUBSCRIPTION_DELETED`, `SUBSCRIPTION_INACTIVATED` | docs.asaas.com, webhooks, 2026-10-19 |
+| Cobrança e renovação com `billingType: "UNDEFINED"` | **Não confirmado.** Não se sabe se, paga a primeira fatura com cartão, o Asaas cobra o cartão sozinho nos meses seguintes, nem se o Pix vira Pix Automático. Decide no sandbox (passo 5 do plano). Se não servir, `createSubscription` ganha `billingType` e o formulário pergunta o meio | docs.asaas.com, criar cobrança e assinaturas, 2026-10-19 |
+| Link do cliente no painel do Asaas (`/customerAccount/show/{id}`) | **Não confirmado** no painel real; conferir no sandbox | `src/lib/env.ts` |
+| Cron de prazos | `/api/cron/billing` todo dia às 12:00 UTC (`vercel.json`), com `Authorization: Bearer $CRON_SECRET` | `vercel.json`, `src/app/api/cron/billing/route.ts` |
 
 ## Documentação criada
 
@@ -85,6 +99,8 @@ Reexecução: rodar de novo `skills add` sobrescreve as mesmas cópias; `.mcp.js
 7. Vercel (2026-10-18): projeto renomeado para `nichemap`; domínio `nichemap-app.vercel.app` adicionado (`nichemap.vercel.app` pertence a outra conta). O antigo `niche-intelligence-six.vercel.app` continua ativo; se a verificação de domínio da Meta for configurada, use o domínio definitivo.
 8. Fonte não oficial (2026-10-19): a regra de fallback usa só o código 100 da Graph API (`NOT_BUSINESS_CODE` em `src/lib/graph.ts`), que também é o código genérico de "parâmetro inválido". **Pendente:** com um token válido, chamar `business_discovery` para um perfil pessoal público e confirmar o `error_subcode` observado e restringir a regra a ele. Até lá, o caso fica registrado aqui e em `PRODUCT.md`.
 9. Fonte não oficial: Apify ainda não foi chamada com token real. Antes de liberar clientes, testar com uma conta liberada e um perfil pessoal público: conferir o aviso "Fonte não oficial", o perfil exibido e o gasto de crédito na Apify.
+
+8. Cobrança automática: teste completo no sandbox (roteiro da spec, passo 5) pendente, com a chave sandbox do dono. Conta de produção e chave real só com OK explícito do dono. Ver `docs/onboarding.md` (Cobrança).
 
 Evidência da coleta diária (2026-10-18, local): Postgres 17 descartável na porta 5499, `snapshots.db.test.ts` passou (migration + upsert + histórico); `/api/cron/snapshot` respondeu 401 sem/errado e, com o segredo, chamou a Graph API real e registrou o erro 190 do token falso. Coleta bem-sucedida com token válido: não testada.
 

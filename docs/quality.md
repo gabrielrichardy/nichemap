@@ -15,6 +15,14 @@ Na CI (`.github/workflows/ci.yml`, Node 24), o job `lint` roda lint, typecheck, 
 
 Durante o trabalho, rode o teste do arquivo afetado (`npx vitest run src/lib/instagram.test.ts`); antes de concluir, `npm run check`.
 
+Testes de banco (`*.db.test.ts`) só rodam com `TEST_DATABASE_URL` apontando para um Postgres descartável. Eles compartilham o mesmo banco e apagam as tabelas, então rode-os **em série**:
+
+```bash
+TEST_DATABASE_URL=postgres://postgres@127.0.0.1:5499/nichemap_test npx vitest run --no-file-parallelism
+```
+
+Com `TEST_DATABASE_URL` definida, o `npm test` comum roda os mesmos arquivos em paralelo e pode dar corrida; use o comando acima.
+
 ## Regras de base
 
 - TypeScript strict e presets oficiais `eslint-config-next`.
@@ -38,6 +46,12 @@ Testes atuais (Node, sem rede nem banco):
 - `src/lib/apify.test.ts` e `src/lib/profile-source.test.ts`: fonte não oficial com `fetch` mockado: mapeamento da resposta, perfil privado, resposta malformada, token fora da URL, e a regra de decisão (só recusa "não comercial" cai para a Apify; chave desligada ou conta não liberada não chama a Apify).
 - `src/lib/cron.test.ts`: o cron só aceita `Bearer <CRON_SECRET>` exato; sem segredo, ninguém passa.
 - `src/lib/snapshots.db.test.ts`: **integração com PostgreSQL real** (migration, upsert diário, histórico em ordem). Só roda com `TEST_DATABASE_URL` apontando para um banco descartável; a CI pula. Última execução: 2026-10-18, Postgres 17 local descartável, passou.
+- `src/lib/billing-rules.test.ts`: regras de cobrança como função pura, todos os eventos e prazos (3 dias, 30 dias, fim do período pago), sem banco e sem rede.
+- `src/lib/asaas.test.ts`: cliente do Asaas com `fetch` mockado (chave no header, erros sem corpo de resposta, timeout). Nenhuma chamada real.
+- `src/lib/billing.test.ts`: busca do resumo de cobrança na página de conta (admin pula, sem configuração pula, falha vira `null` com log).
+- `src/app/api/billing/webhook/route.test.ts`: sem token ou token errado = 401, corpo inválido = 400, falha de processamento = 500, sucesso e duplicado = 200.
+- `src/lib/billing.db.test.ts`: **integração com PostgreSQL real** do checkout (duas chamadas e chamadas concorrentes criam uma assinatura só, falha do Asaas não deixa linha), troca de plano e cancelamento.
+- `src/lib/billing-sync.db.test.ts`: **integração com PostgreSQL real** do webhook e dos prazos (idempotência por id de evento, evento que falhou é reprocessado no reenvio, 404 do Asaas, prazos do tick). Mesmo padrão de `TEST_DATABASE_URL`.
 - `src/lib/access.test.ts`: tabela completa de acesso por seção e plano; admin acessa tudo.
 - `src/lib/viewer.test.ts`: redirecionamentos (`/entrar`, `/perfil`, `/plano`), 404 de admin, alvo do cliente ignora `?target`, leitura de `headers()` sem login configurado.
 - `src/lib/onboarding.test.ts`: mensagens da busca do perfil (inválido, indisponível, conta pessoal).

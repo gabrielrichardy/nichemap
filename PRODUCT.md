@@ -21,7 +21,7 @@ O Nichemap reúne essas informações num painel único, pensado para ser consul
 | Conteúdo, Relatórios | não | sim | sim |
 | Market Radar, Empresas, Oportunidades (e o bloco de mercado do Dashboard) | não | não | sim |
 
-Toda conta nova começa no Básico; o plano muda só pelo admin (sem cobrança automática por enquanto). Seções fora do plano aparecem com cadeado e levam a `/plano`. Spec: `docs/superpowers/specs/2026-10-18-login-contas-design.md`.
+Toda conta nova começa no Básico (gratuito). Preços: Intermediário R$ 59,90 por mês ou R$ 599,00 por ano; Completo R$ 99,90 por mês ou R$ 999,00 por ano (anual com 2 meses grátis). O cliente assina pelo site e paga por Pix, cartão ou boleto na página do Asaas. Cortesia: o admin concede Intermediário ou Completo sem cobrança e sem prazo. O admin muda plano à mão só para cortesia ou para quem paga por fora, e só sem assinatura aberta. Seções fora do plano aparecem com cadeado e levam a `/plano`. Specs: `docs/superpowers/specs/2026-10-18-login-contas-design.md` e `docs/superpowers/specs/2026-10-19-cobranca-design.md`.
 
 ## Fluxos da versão inicial
 
@@ -42,7 +42,9 @@ Em ordem de prioridade:
 
 ## Fora de escopo (por enquanto)
 
-- Cobrança automática dos planos e notificações. Controles ainda sem ação estão na issue #23.
+- Cupons, descontos, período de teste, parcelamento do anual, cobrança proporcional em troca de plano e botão de estorno no admin.
+- Nota fiscal: o dono vende como pessoa física (CPF), então não há NFS-e. Se abrir CNPJ, a emissão automática é ligada no Asaas.
+- Notificações fora do site (WhatsApp pago, negativação no Serasa). Controles ainda sem ação estão na issue #23.
 - IA que encontra e lê concorrentes automaticamente (projeto separado; exige API paga a aprovar).
 - App nativo: o produto é web mobile-first (decisão do usuário, 2026-10-17). React Native/Expo não entra.
 
@@ -74,6 +76,8 @@ Em ordem de prioridade:
 | Concorrentes iguais para todos os clientes do plano Completo | Limitação conhecida | Cliente de outro nicho vê a mesma lista | Projeto da IA de concorrentes |
 | Textos de privacidade e termos | Rascunho | Precisam de revisão jurídica e dos dados do responsável | Preencher `[NOME DO RESPONSÁVEL]` e `[CPF/CNPJ]` e revisar |
 | Cliente OAuth do Google | Pendente com o dono | Sem ele ninguém entra | Seguir `docs/onboarding.md` (Login com Google) |
+| Cobrança Asaas: teste completo no sandbox | Pendente | Fluxo de assinatura, webhook e cron não verificados com o Asaas real | Dono fornece a chave sandbox; seguir o roteiro de 8 passos da spec de cobrança |
+| Cobrança Asaas: conta e chaves de produção | Decisão do dono | Sem elas o site não cobra de verdade | Seguir `docs/onboarding.md` (Cobrança) depois do teste no sandbox |
 | Código 100 como recusa de "não comercial" (Graph) | Pendente de chamada real | A regra de fallback usa só o código 100, que também é "parâmetro inválido" genérico; sem teste real, não se sabe se perfil pessoal cai certo na Apify | Chamar a Graph com um perfil pessoal público (token válido) e restringir a regra ao `error_subcode` observado |
 | Fonte não oficial (Apify, plano Free) | Decisão do dono (2026-10-19) | Fornecedor pode falhar, mudar preço ou sair; crédito US$ 5/mês | Acompanhar consumo no painel da Apify; não subir de plano sem nova aprovação |
 

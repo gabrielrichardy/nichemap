@@ -38,6 +38,9 @@ Copie `.env.example` para `.env.local` (ignorado pelo Git) e preencha só o que 
 | `BETTER_AUTH_URL` | Endereço do site (`http://localhost:3000` em dev, domínio real em produção) |
 | `ADMIN_EMAILS` | E-mails do Google com acesso a `/admin` e Configurações, separados por vírgula |
 | `SUPPORT_WHATSAPP` | WhatsApp do suporte mostrado aos clientes (DDD + número) |
+| `ASAAS_API_KEY` | Chave de API do Asaas (sandbox ou produção, conforme `ASAAS_ENV`); só no servidor |
+| `ASAAS_WEBHOOK_TOKEN` | Token que o Asaas envia no aviso de cada evento; 32 a 255 caracteres, sem espaços |
+| `ASAAS_ENV` | `sandbox` (teste, padrão) ou `production` |
 | `UNOFFICIAL_SOURCE_ENABLED` | Chave geral da fonte não oficial. Só vale `true` exato; qualquer outro valor deixa a fonte desligada |
 | `APIFY_TOKEN` | Token da conta Apify (somente no servidor). Sem ele a fonte fica desligada |
 
@@ -80,6 +83,85 @@ Sem as quatro variáveis de login, o site mostra "Login ainda não configurado" 
 
 Fluxo do cliente: entra com o Google → digita o @ → confirma a foto do perfil (escolha definitiva) → painel conforme o plano (todos começam no Básico). O admin muda planos e destrava perfis em `/admin`.
 
+## Cobrança (Asaas)
+
+O site vende o Intermediário e o Completo pelo Asaas. O cliente escolhe Pix, cartão ou boleto numa página do próprio Asaas; o site nunca vê dados de cartão. Esta seção é feita **uma vez** pelo dono. Os caminhos exatos dos menus do Asaas ainda não foram conferidos em conta real: ao fazer o teste no sandbox, anote o que mudou e avise quem está mantendo o projeto.
+
+### 1. Criar a conta de teste (sandbox)
+
+1. Crie uma conta no ambiente de teste do Asaas (sandbox), em `sandbox.asaas.com`. Esse endereço ainda não foi conferido com uma conta real; confirme na primeira vez.
+2. No sandbox não há dinheiro de verdade. Use-o para testar tudo antes da conta de produção.
+
+### 2. Criar a conta de produção (só depois dos testes)
+
+1. Cadastre a conta de produção no asaas.com com o **seu CPF**, e envie os documentos que o Asaas pedir.
+2. Só ative a conta de produção quando você decidir que o site pode começar a receber dinheiro de verdade.
+
+### 3. Gerar a chave de API
+
+1. No painel do Asaas, procure a área de **chave de API** (em integrações ou configurações).
+2. Copie a chave e guarde-a num gerenciador de senhas.
+3. Nunca mande a chave por WhatsApp ou e-mail, nem cole em código ou no GitHub. Use uma chave do sandbox para testes e a de produção só no ambiente real.
+
+### 4. Configurar o webhook
+
+O webhook é o aviso que o Asaas manda ao site quando um pagamento acontece. Sem ele, o plano não muda sozinho.
+
+1. No painel do Asaas, abra a área de **webhooks** (em integrações) e crie um novo.
+2. **URL:** `https://<seu-domínio>/api/billing/webhook` (troque `<seu-domínio>` pelo endereço do site na Vercel).
+3. **Eventos:** marque exatamente estes, e nenhum outro:
+   - `PAYMENT_CONFIRMED` e `PAYMENT_RECEIVED` (pagamento confirmado)
+   - `PAYMENT_OVERDUE` (cobrança vencida)
+   - `PAYMENT_REFUNDED` (estorno)
+   - `PAYMENT_CHARGEBACK_REQUESTED` (contestação no cartão)
+   - `SUBSCRIPTION_DELETED` e `SUBSCRIPTION_INACTIVATED` (assinatura encerrada)
+4. **Token de autenticação:** crie um texto aleatório de pelo menos 32 caracteres, sem espaços (o gerenciador de senhas gera). Cole no campo do Asaas e guarde o mesmo texto para a variável `ASAAS_WEBHOOK_TOKEN` (passo 5). Os dois têm de ser iguais; o site recusa avisos com token errado.
+5. **Tipo de envio:** escolha **sequencial**. Assim o Asaas manda um aviso por vez, na ordem, e espera a resposta do site antes do próximo.
+
+### 5. Colocar as variáveis na Vercel
+
+1. Na Vercel, abra o projeto do Nichemap e vá em **Settings > Environment Variables**.
+2. Cadastre:
+   - `ASAAS_API_KEY`: a chave do passo 3.
+   - `ASAAS_WEBHOOK_TOKEN`: o mesmo token do passo 4.
+   - `ASAAS_ENV`: `sandbox` enquanto estiver testando; `production` só depois da conta de produção ser aprovada por você.
+3. Faça um **novo deploy** (Deployments > Redeploy). Variável nova só vale depois do deploy.
+4. Não crie essas variáveis com prefixo `NEXT_PUBLIC_`: elas são segredos.
+
+Sem as três variáveis, os botões "Assinar" mostram "Assinaturas indisponíveis no momento" e o resto do site segue funcionando.
+
+### 6. Pausa na fila de avisos
+
+Se o site responder com erro várias vezes seguidas, o Asaas pausa a fila de envio do webhook e para de mandar avisos. Causas comuns: `ASAAS_WEBHOOK_TOKEN` diferente do token cadastrado no Asaas, ou a variável `ASAAS_API_KEY` errada.
+
+1. Corrija a causa e faça um novo deploy na Vercel.
+2. No painel do Asaas, na mesma área de webhooks, reative a fila pausada.
+3. Confirme no teste do sandbox se o Asaas reenvia os avisos que ficaram para trás. Se um pagamento confirmado no Asaas não virou plano, peça ajuda a quem mantém o projeto.
+
+A verificação diária (todo dia às 09:00 de Brasília) cuida só dos prazos: 3 dias de tolerância, fim do período pago e 30 dias de atraso. Ela não substitui um aviso perdido.
+
+### 7. Estornar um pagamento
+
+1. No painel do Asaas, abra a cobrança do cliente e use a opção de **estornar**. O caminho exato ainda será confirmado no teste do sandbox.
+2. Assim que o estorno chega, o site volta o cliente ao plano Básico na hora e encerra a assinatura.
+3. **Atenção:** qualquer estorno, inclusive parcial, encerra o plano. Para compensar um cliente sem tirar o acesso, converse com ele antes e não use o estorno no Asaas.
+4. Desistência em até 7 dias: o cliente pede pelo suporte, e você estorna o valor pago. O prazo legal é de 7 dias após o primeiro pagamento.
+
+### 8. Dar cortesia
+
+1. Em `/admin`, abra a conta do cliente e marque **Cortesia (nunca cobra)**, junto com o plano (Intermediário ou Completo).
+2. A cortesia não vence e não passa por cobrança. Só você tira, desmarcando-a ou voltando o plano.
+3. A cortesia só fica disponível quando a conta não tem assinatura aberta. Se ela tiver, cancele a assinatura no painel do Asaas (ou peça ao cliente para cancelar em Minha conta) e espere o fim do período pago, que o `/admin` mostra.
+
+### 9. Nota fiscal
+
+- Enquanto a conta for de **CPF**, o site não emite nota fiscal. O cliente recebe o comprovante do próprio Asaas.
+- Quando você abrir um **CNPJ**, a emissão automática de nota fiscal do Asaas pode ser ligada no painel dele (cobra R$ 0,49 por nota). O site não precisa mudar.
+- Um cliente com CNPJ novo (com letras, formato alfanumérico) não consegue assinar pelo site hoje, porque o site aceita só CNPJ com números.
+
+### 10. Imposto de renda
+
+Dinheiro recebido como pessoa física tem tributação própria. Converse com um contador antes de começar a vender. Este texto não é orientação fiscal.
 ## Fonte não oficial (Apify): teste opcional
 
 Serve para contas **pessoais públicas**, que a API oficial não lê. É um teste desligável: sem as duas variáveis abaixo, o app funciona como antes e não chama a Apify. O painel mostra o aviso "Fonte não oficial" sempre que esses dados aparecem.
@@ -87,7 +169,7 @@ Serve para contas **pessoais públicas**, que a API oficial não lê. É um test
 1. Crie uma conta em https://apify.com no **plano Free**. Não cadastre cartão.
 2. No painel da Apify, abra **Settings > Integrations** e copie o **API token** (é um segredo: não envie por chat nem coloque no código).
 3. Na Vercel, em Settings > Environment Variables, cadastre `APIFY_TOKEN` com esse token e `UNOFFICIAL_SOURCE_ENABLED` com o valor `true`. Depois faça um novo deploy.
-4. Aplique a migration que cria a coluna de liberação por conta (`drizzle/0002_aromatic_thunderball.sql`), somente quando você autorizar. Sem ela o `/admin` não consegue salvar a liberação.
+4. Aplique a migration que cria a coluna de liberação por conta (`drizzle/0003_clever_overlord.sql`), somente quando você autorizar. Sem ela o `/admin` não consegue salvar a liberação.
 5. Entre em `/admin` e clique em "Fonte não oficial: desligada" na conta que deve usar a fonte. O botão passa a dizer "ligada". Toda conta começa desligada.
 
 **Atenção:** não troque para um plano pago da Apify sem pedir autorização antes. O Free tem US$ 5 de crédito por mês (cerca de 1.900 perfis, a US$ 2,60 por mil; página de preço apify.com/pricing e apify.com/apify/instagram-profile-scraper, consultadas em 2026-10-19). Se o crédito acabar ou a Apify recusar as consultas, os clientes devem ver "Dados indisponíveis" e o motivo fica no log do servidor. Esse comportamento ainda precisa ser confirmado em uma execução real.
@@ -101,9 +183,14 @@ Para desligar a fonte, apague `UNOFFICIAL_SOURCE_ENABLED` (ou troque para outro 
 3. Ao criar/alterar tabelas em `src/db/schema/`, rode `npm run db:generate` e revise o SQL em `drizzle/`.
 4. Aplique com `npm run db:migrate` somente no banco correto.
 
-A tabela `profile_snapshots` (migration `drizzle/0000_profile_snapshots.sql`) guarda um registro por perfil por dia. As tabelas de login `user`, `session`, `account` e `verification` (migration `drizzle/0001_auth.sql`) guardam contas, sessões, plano e @ travado.
+A tabela `profile_snapshots` (migration `drizzle/0000_profile_snapshots.sql`) guarda um registro por perfil por dia. As tabelas de login `user`, `session`, `account` e `verification` (migration `drizzle/0001_auth.sql`) guardam contas, sessões, plano e @ travado. As tabelas de cobrança `subscription` e `billing_event`, e a marca de cortesia `user.complimentary` (migration `drizzle/0004_billing.sql`), guardam assinaturas e avisos do Asaas. São três migrations no total.
 
-Banco do projeto: Neon, projeto `nichemap` (região `aws-us-east-1`), criado em 2026-10-18 com as duas migrations aplicadas.
+Banco do projeto: Neon, projeto `nichemap` (região `aws-us-east-1`), criado em 2026-10-18 com as duas primeiras migrations (0000 e 0001) aplicadas. As migrations 0002 e 0003 (fonte não oficial) e 0004 (cobrança) ainda não foram aplicadas; veja o aviso abaixo.
+
+> **Atenção: aplique as migrations pendentes (0002, 0003 e 0004) no banco de produção ANTES de juntar (merge) ou publicar a cobrança.**
+> O login lê as colunas novas `user.unofficial_source` (0003) e `user.complimentary` (0004). Se o site novo for ao ar sem ela, **ninguém consegue entrar**, nem você.
+> A ordem é: 1) aplicar `drizzle/0002_shared_profiles.sql`, `drizzle/0003_clever_overlord.sql` e `drizzle/0004_billing.sql`, nessa ordem, no banco de produção (confira antes quais já estão lá); 2) só depois fazer o merge e o deploy.
+> Esse passo mexe no banco de produção, então só acontece com o **seu OK explícito**, e `npm run db:migrate` roda só num banco autorizado. Use o caminho de "Banco de produção (Vercel)" abaixo, ou o editor SQL da Vercel, como foi feito com a 0000 (ver `docs/setup.md`).
 
 ### Banco de produção (Vercel)
 

@@ -33,6 +33,10 @@ src/
     globals.css              tokens CSS e Tailwind
     api/instagram/route.ts   GET: valida ?target e devolve DashboardData (real ou mock)
     api/cron/snapshot/       GET diário (vercel.json): grava um snapshot por perfil acompanhado
+    api/cron/billing/        GET diário às 12:00 UTC (vercel.json): roda os prazos da cobrança (runBillingTick)
+    api/billing/webhook/     POST: avisos do Asaas; token em asaas-access-token, 401 se errado; 500 se falhar (Asaas reenvia)
+    plano/                   planos, preços, Assinar (formulário de CPF/CNPJ) e mudança de plano
+    conta/actions.ts         server actions de Minha conta: mudar plano, cancelar assinatura, excluir conta
   components/
     AppShell.tsx             Sidebar (menu desktop + menu celular) + Header + <main>
     Section.tsx              título, erro de perfil inválido e DataSourceBanner das páginas de seção
@@ -56,6 +60,11 @@ src/
     viewer.ts                getViewer/requireViewer/requireAdmin/targetFor: quem é o visitante, redirecionamentos, alvo
     access.ts                planos e acesso por seção (puro, testado)
     accounts.ts              travar/destravar @, plano, fonte não oficial por conta, exclusão, listagem e estatísticas de contas
+    asaas.ts                 cliente HTTP da API do Asaas (fetch, chave no header, timeout de 10 s); erros sem corpo de resposta
+    billing-plans.ts         preços (constante; mudar preço = PR) e formatação em BRL
+    billing-rules.ts         regras puras: (situação + evento + data) → (nova situação + plano); sem banco nem rede
+    billing.ts               checkout, mudança de plano, cancelamento e resumo da assinatura (escreve subscription e user.plan na mesma transação)
+    billing-sync.ts          webhook (token, idempotência em billing_event) e coleta diária de prazos (runBillingTick)
     onboarding.ts            busca do perfil antes de travar (mensagens pt-BR)
     mockData.ts              dados de exemplo
     types.ts                 DashboardData e tipos de cada bloco
@@ -118,8 +127,27 @@ Limitações conhecidas do fluxo atual:
 - Pool: `max: 5`, timeout de conexão 5 s, ocioso 30 s; criado na primeira chamada a `getDb()`, então build e testes não precisam de banco.
 - `profile_snapshots` (`drizzle/0000_profile_snapshots.sql`): `username`, `taken_on` (dia no fuso de Brasília), `followers`, `media_count`, `engagement_pct`; índice único (`username`, `taken_on`) usado pelo upsert diário e pelas consultas por período.
 - `user`, `session`, `account`, `verification` (`drizzle/0001_auth.sql`): tabelas do Better Auth; `user` tem `plan` (padrão `basico`), `instagram_username` (sem unicidade desde `drizzle/0002`: várias contas podem travar o mesmo @; a coleta diária grava cada @ uma vez), `terms_accepted_at`, `last_seen_at` (último login). Sessões e contas Google apagam em cascata com o usuário.
+- `subscription`, `billing_event` e `user.complimentary` (`drizzle/0004_billing.sql`): `subscription` guarda a assinatura Asaas da conta (uma por usuário, apaga em cascata) com `plan`, `cycle`, `status`, `period_end`, `overdue_since`, `scheduled_plan` e `invoice_url` (cobrança em aberto); `billing_event` registra os eventos de webhook do Asaas pelo id do evento (idempotência); `complimentary` (padrão `false`) marca conta cortesia, nunca cobrada.
 - `user.unofficial_source` (`drizzle/0003_clever_overlord.sql`, `boolean not null default false`): liberação da fonte não oficial por conta. Migration gerada, ainda não aplicada sem autorização.
 - Coleta: Vercel Cron chama `/api/cron/snapshot` às 11:00 UTC com `Authorization: Bearer $CRON_SECRET`; grava o perfil padrão, os concorrentes e os perfis travados pelos clientes. Só grava dados reais (exige token).
+- Cobrança: Vercel Cron chama `/api/cron/billing` às 12:00 UTC com o mesmo `CRON_SECRET`; roda os prazos (3 dias de tolerância, fim do período pago após cancelar, 30 dias de atraso).
+
+## Cobrança (Asaas)
+
+Fluxo, em ordem:
+
+1. **Checkout** (`startCheckout` em `billing.ts`): o servidor cria ou reutiliza o cliente no Asaas e a assinatura, com `externalReference` = id do usuário, grava a linha `subscription` e redireciona para a primeira cobrança no Asaas. O CPF/CNPJ vai ao Asaas e não é guardado no Nichemap.
+2. **Webhook** (`POST /api/billing/webhook`): confere o token (`asaas-access-token`, comparação em tempo constante), grava o id do evento em `billing_event` (se já existe, responde 200 sem reprocessar) e chama `handleAsaasEvent`.
+3. **Consulta no Asaas** (`billing-sync.ts`): o aviso só dá os ids. O módulo busca a cobrança ou a assinatura na API e decide a partir dela, não a partir do conteúdo do aviso.
+4. **Regras** (`billing-rules.ts`, função pura): situação atual + evento + data → nova situação e plano. Testada sem banco e sem rede.
+5. **Escrita**: `saveOutcome` atualiza `subscription` e `user.plan` na mesma transação, com a trava da linha `user` (mesma ordem de trava que o webhook usa, evitando deadlock). Falha → 500 e o evento não fica marcado como processado, então o Asaas reenvia.
+6. **Prazos**: `runBillingTick` (cron diário, e também ao carregar a conta) aplica os prazos das regras.
+
+Quem controla o acesso continua sendo `user.plan` (`access.ts`, `requireViewer`). O módulo de cobrança é o único que escreve nele, e só para contas com assinatura. Cortesia (`user.complimentary`) nunca passa por cobrança, cron ou webhook. Mudança manual de plano no admin fica bloqueada enquanto houver assinatura aberta ou período pago em andamento.
+
+Eventos tratados pelo webhook: `PAYMENT_CONFIRMED`, `PAYMENT_RECEIVED`, `PAYMENT_OVERDUE`, `PAYMENT_REFUNDED`, `PAYMENT_CHARGEBACK_REQUESTED`, `SUBSCRIPTION_DELETED`, `SUBSCRIPTION_INACTIVATED`. `PAYMENT_DELETED` é ignorado de propósito: remover a cobrança não muda o acesso, e checkouts abandonados encerram pelo prazo de 30 dias.
+
+Tabelas: `subscription` (uma por usuário, cascata com `user`) e `billing_event` (id do evento como chave primária, para idempotência), em `drizzle/0004_billing.sql`. Schema em `src/db/schema/billing.ts`.
 - Leitura: `getDashboardData` busca os últimos 30 dias; se o banco falhar, o painel segue sem histórico e registra `warn` no log.
 
 ## Decisões
@@ -141,6 +169,10 @@ Limitações conhecidas do fluxo atual:
 | Better Auth 1.7.7 com Google | Login sem senha guardada; adaptador Drizzle; campos server-owned com `input: false` | Context7 `/better-auth/better-auth`, `npm view`, 2026-10-18 | Upgrade de major ou novo provedor |
 | Planos por seção em `access.ts`, aplicados no servidor | Bloqueio não pode ser só visual | Spec de login, 2026-10-18 | Cobrança automática |
 | Drizzle + PostgreSQL | Default do toolkit; necessidade concreta: snapshots diários | `PRODUCT.md` | Se o produto dispensar histórico |
+| Asaas como provedor de cobrança (sem SDK, `fetch` direto) | Mais barato nos três meios, Pix Automático, nota fiscal automática, sandbox e página de pagamento hospedada | `docs/superpowers/specs/2026-10-19-cobranca-design.md`, docs.asaas.com, 2026-10-19 | Se a taxa mudar ou houver CNPJ |
+| Webhook decide a partir da consulta na API, não do conteúdo do aviso | Aviso sem token ou adulterado não pode liberar plano | Spec de cobrança, "Como funciona por dentro" | — |
+| `billingType: UNDEFINED` na assinatura | Doc do Asaas aceita, pagador escolhe o meio na fatura; **cobrança automática do cartão e Pix Automático não confirmados** | docs.asaas.com, 2026-10-19 | Após o teste no sandbox |
+| Cortesia como coluna própria (`user.complimentary`), não como plano | Não se confunde com quem paga por fora e nunca passa por cobrança | Spec de cobrança, "Admin", 2026-10-19 | — |
 | Apify (`apify~instagram-profile-scraper`) como plano B para conta pessoal, só em contas liberadas | Teste desligável pedido pelo dono; custo zero no Free; sem login de conta própria no Instagram | Spec `2026-10-19-fonte-nao-oficial-design.md`, preço Apify em 2026-10-19 | Cobrança, fornecedor sair, ou Meta bloquear; ou se o código 100 não for confirmado |
 
 ## Manutenção

@@ -1,5 +1,7 @@
 import "server-only";
 import {
+  asaasEnvSchema,
+  asaasWebhookTokenSchema,
   apifyTokenSchema,
   authSecretSchema,
   databaseUrlSchema,
@@ -68,6 +70,35 @@ export function getAuthConfig() {
     secret: parseEnv("BETTER_AUTH_SECRET", secret, authSecretSchema),
     baseURL: parseEnv("BETTER_AUTH_URL", baseURL, httpUrlSchema),
   };
+}
+
+const ASAAS_BASE_URLS = {
+  sandbox: "https://api-sandbox.asaas.com/v3",
+  production: "https://api.asaas.com/v3",
+} as const;
+
+// Returns null until Asaas billing is configured (API key and webhook token set).
+export function getAsaasConfig() {
+  const apiKey = process.env.ASAAS_API_KEY?.trim();
+  const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN?.trim();
+  if (!apiKey || !webhookToken) return null;
+  const env = parseEnv("ASAAS_ENV", process.env.ASAAS_ENV?.trim() || undefined, asaasEnvSchema);
+  return {
+    apiKey,
+    webhookToken: parseEnv("ASAAS_WEBHOOK_TOKEN", webhookToken, asaasWebhookTokenSchema),
+    baseUrl: ASAAS_BASE_URLS[env],
+  };
+}
+
+const ASAAS_PANEL_HOSTS = {
+  sandbox: "https://sandbox.asaas.com",
+  production: "https://www.asaas.com",
+} as const;
+
+// Link to a customer in the Asaas panel, on the same host (sandbox or production) as the API.
+export function getAsaasCustomerPanelUrl(customerId: string): string {
+  const env = parseEnv("ASAAS_ENV", process.env.ASAAS_ENV?.trim() || undefined, asaasEnvSchema);
+  return `${ASAAS_PANEL_HOSTS[env]}/customerAccount/show/${encodeURIComponent(customerId)}`;
 }
 
 // ADMIN_EMAILS: comma-separated Google account emails with access to /admin.

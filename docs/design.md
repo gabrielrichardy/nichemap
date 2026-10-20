@@ -36,6 +36,14 @@ Resolvido com as páginas de seção: menu horizontal no celular (abaixo de `md`
 
 Estados pertinentes: carregando, erro de rede, dados de exemplo, dados reais, fonte não oficial (banner laranja `bg-orange-50 text-orange-800`, texto "Fonte não oficial — pode falhar ou ficar desatualizada"; nunca em verde nem como "Dados reais"), falha da API (cai em exemplo com motivo). Perfil sem publicações mostra "Nenhuma publicação encontrada" (antes caía em posts de exemplo sem aviso).
 
+## Cobrança
+
+- `/plano` (`PlanCards`): três cartões (Básico, Intermediário, Completo), 1 coluna no celular e 3 a partir de `lg`; o plano atual tem borda azul e selo “Plano atual”. Alternância Mensal/Anual é um grupo de botões com `aria-pressed`; no anual aparece “2 meses saem de graça”. “Assinar” só aparece nos planos pagos e some para admin e cortesia.
+- Checkout (`CheckoutForm`): abre abaixo dos cartões com plano, preço e ciclo; pede só CPF/CNPJ (obrigatório) e celular (opcional), cada um com dica ligada por `aria-describedby`. Erro fica junto do campo (`role="alert"`, `aria-invalid`); o botão mostra espera. O pagamento (Pix, cartão, boleto) acontece na página do Asaas.
+- `/conta`: a linha Plano mostra plano e situação (“Ativa — renova em…”, “Muda para … em …”, “Pagamento pendente”, “Cancelada — ativa até…”) e o link “Pagar” enquanto há cobrança em aberto. Conta suspensa mostra “Básico” com “Plano X pausado por falta de pagamento”. O painel Assinatura (`SubscriptionPanel`) troca de plano (só ativa) e cancela num `<dialog>` de confirmação que diz até quando o plano vale.
+- Aviso de atraso (`BillingBanner`): faixa âmbar no topo de todas as páginas, com ícone decorativo e botão “Pagar agora”. Em atraso, diz o prazo de tolerância; suspensa, diz que o plano foi pausado.
+- `/admin` (`AdminAccountsTable`): cada conta mostra Assinatura (situação), Ciclo e “Pago até”. Plano e “Cortesia (nunca cobra)” ficam travados, com o aviso “Plano controlado pela assinatura”, enquanto houver assinatura aberta.
+
 ## Manutenção
 
 Mudanças visuais e de interação atualizam `globals.css`/componentes e esta orientação quando a regra mudar. Use a skill `web-design-guidelines` nas revisões de UI.
